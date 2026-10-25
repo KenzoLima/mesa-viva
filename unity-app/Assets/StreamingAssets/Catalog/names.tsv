@@ -1,0 +1,35 @@
+# mesa-viva catalog schema=1 exported_at=2026-10-25T14:23:42+00:00 source_built_at=2026-10-25T14:23:42+00:00
+norm_name	oracle_id	lang	display_name
+aberracao insetoide	f9e454f2-67f7-5915-84ec-b502137be973	pt	Aberração Insetoide
+aether vial	653f2d7f-83b4-5831-92e9-c2d2f8a82eab	en	Aether Vial
+breeding pool	6582bc96-2a4e-54e4-b7c0-f3478d42fe4f	en	Breeding Pool
+delver of secrets	f9e454f2-67f7-5915-84ec-b502137be973	en	Delver of Secrets
+delver of secrets // insectile aberration	f9e454f2-67f7-5915-84ec-b502137be973	en	Delver of Secrets // Insectile Aberration
+dryad arbor	f947f073-08f8-59a5-b4f7-3c506287f659	en	Dryad Arbor
+elfos de llanowar	744cac5c-9d74-548b-8fdd-62217bc32daf	pt	Elfos de Llanowar
+explorador dos segredos	f9e454f2-67f7-5915-84ec-b502137be973	pt	Explorador dos Segredos
+fire	315d9412-d559-5276-8326-172a29d4e930	en	Fire
+fire // ice	315d9412-d559-5276-8326-172a29d4e930	en	Fire // Ice
+forest	7f568108-c457-5467-bce9-744bdc6564fa	en	Forest
+goblin	3f6815c9-aeba-56e0-aa96-4be63c11001d	en	Goblin
+goblin guide	86c827a2-bbcf-5e69-a529-b42d090fa20a	en	Goblin Guide
+grizzly bears	ce3a8cf7-6ca7-5a0d-a6aa-e7bc94998193	en	Grizzly Bears
+ice	315d9412-d559-5276-8326-172a29d4e930	en	Ice
+insectile aberration	f9e454f2-67f7-5915-84ec-b502137be973	en	Insectile Aberration
+island	5102824c-46ab-524b-81b2-7aa358349551	en	Island
+jotun grunt	46aa3ea8-ea93-56f6-b030-ce2cd1394976	en	Jötun Grunt
+lightning bolt	4af6224e-df0c-5a8b-87f3-79b689eeef8f	en	Lightning Bolt
+liliana of the veil	18c1f87e-a85e-5eb2-be10-ed082687ce47	en	Liliana of the Veil
+llanowar elves	744cac5c-9d74-548b-8fdd-62217bc32daf	en	Llanowar Elves
+llanowar visionary	beae48af-6861-5717-9660-65cad9910884	en	Llanowar Visionary
+llanowar visionary // llanowar visionary	beae48af-6861-5717-9660-65cad9910884	en	Llanowar Visionary // Llanowar Visionary
+llanowar wastes	8b1c4935-fb50-50b9-aad8-5a842b67f502	en	Llanowar Wastes
+myr enforcer	64eadbaa-7f30-590a-aa59-c322b3b11dda	en	Myr Enforcer
+ornithopter	adb112f5-8a5b-5c9c-a663-0f9670cd1917	en	Ornithopter
+progenitus	3f4b12f9-f867-59ac-a8a4-8b7b03475cb5	en	Progenitus
+relampago	4af6224e-df0c-5a8b-87f3-79b689eeef8f	pt	Relâmpago
+serra angel	6b51832e-94fd-5ec4-b148-8f2748964c0f	en	Serra Angel
+shivan dragon	13741ed1-5e8f-59da-8bc4-8441f74fa8b8	en	Shivan Dragon
+sol ring	422f03aa-270b-54fb-b574-6bf804b029e5	en	Sol Ring
+tarmogoyf	a43de946-f630-5add-aeff-abc05bda0bc7	en	Tarmogoyf
+wastes	f34e8295-d741-5a7d-9e08-3b09918d20d7	en	Wastes

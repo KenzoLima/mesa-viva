@@ -1,0 +1,513 @@
+/* Componentes das telas de menu (retrato). Visual do protótipo aprovado; variáveis em Theme.uss.
+   Observação: o USS do Unity não tem "gap" nem gradientes — o espaçamento é feito com margens. */
+
+.mv-app {
+    flex-grow: 1;
+    background-color: var(--mv-bg);
+}
+
+.mv-screen-host {
+    flex-grow: 1;
+}
+
+.mv-screen {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--mv-bg);
+}
+
+/* ---------- cabeçalho ---------- */
+.mv-header {
+    flex-direction: row;
+    align-items: center;
+    padding: 12px 12px 8px 12px;
+    flex-shrink: 0;
+}
+
+.mv-header__title {
+    flex-grow: 1;
+    flex-shrink: 1;
+    font-size: 22px;
+    -unity-font-style: bold;
+    color: var(--mv-gold-bright);
+    margin-left: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mv-icon-btn {
+    width: 44px;
+    height: 44px;
+    margin: 0;
+    padding: 0;
+    border-width: 0;
+    border-radius: 10px;
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--mv-gold-bright);
+    font-size: 22px;
+    -unity-text-align: middle-center;
+}
+
+.mv-icon-btn:hover {
+    background-color: #2a2219;
+}
+
+/* ---------- conteúdo ---------- */
+.mv-content {
+    flex-grow: 1;
+    padding: 8px 20px 24px 20px;
+}
+
+.mv-content > .unity-scroll-view__content-viewport > .unity-scroll-view__content-container > * {
+    margin-bottom: 14px;
+}
+
+.mv-footer {
+    padding: 12px 20px 20px 20px;
+    border-top-width: 1px;
+    border-color: #2a2219;
+    flex-shrink: 0;
+}
+
+.mv-section-label {
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--mv-muted);
+    margin-bottom: 8px;
+    -unity-font-style: bold;
+}
+
+.mv-text {
+    white-space: normal;
+    color: var(--mv-text);
+}
+
+.mv-display {
+    font-size: 26px;
+    -unity-font-style: bold;
+    color: var(--mv-gold-pale);
+    white-space: normal;
+}
+
+.mv-logo {
+    font-size: 40px;
+    letter-spacing: 6px;
+    -unity-font-style: bold;
+    color: var(--mv-gold-bright);
+    -unity-text-align: middle-center;
+}
+
+.mv-small {
+    font-size: 12px;
+    color: #8f846f;
+    white-space: normal;
+    -unity-text-align: middle-center;
+}
+
+/* ---------- botões ---------- */
+.mv-btn--large {
+    min-height: 48px;
+    font-size: 15px;
+}
+
+.mv-btn--ghost {
+    background-color: rgba(0, 0, 0, 0);
+    border-color: var(--mv-gold);
+    color: var(--mv-gold-bright);
+}
+
+.mv-btn:disabled {
+    opacity: 0.45;
+}
+
+/* Linha clicável (Início, lista de decks, modos de uso) */
+.mv-row {
+    flex-direction: row;
+    align-items: center;
+    min-height: 64px;
+    padding: 12px 16px;
+    margin: 0;
+    border-width: 1px;
+    border-radius: 14px;
+    border-color: var(--mv-line);
+    background-color: var(--mv-surface);
+    color: var(--mv-text);
+    -unity-text-align: middle-left;
+}
+
+.mv-row:hover {
+    border-color: var(--mv-gold);
+}
+
+.mv-row--selected {
+    border-color: var(--mv-gold-bright);
+    background-color: #2e2518;
+}
+
+.mv-row__body {
+    flex-grow: 1;
+    flex-shrink: 1;
+    margin-left: 12px;
+}
+
+.mv-row__title {
+    -unity-font-style: bold;
+    white-space: normal;
+}
+
+.mv-row__sub {
+    font-size: 13px;
+    color: var(--mv-muted);
+    white-space: normal;
+}
+
+.mv-row__chevron {
+    color: #8a7c66;
+    font-size: 20px;
+}
+
+/* Card de destaque "Nova partida" */
+.mv-hero {
+    border-width: 1px;
+    border-radius: 20px;
+    border-color: var(--mv-gold);
+    background-color: #241d14;
+    padding: 24px;
+}
+
+.mv-hero > * {
+    margin-bottom: 8px;
+}
+
+.mv-tip {
+    border-width: 1px;
+    border-radius: 14px;
+    border-color: var(--mv-line);
+    padding: 14px 16px;
+    color: var(--mv-muted);
+    font-size: 13px;
+    white-space: normal;
+}
+
+/* ---------- chips ---------- */
+.mv-chip-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.mv-chip-row > .mv-chip {
+    margin: 0 8px 8px 0;
+}
+
+/* ---------- símbolos de mana ---------- */
+.mv-pips {
+    flex-direction: row;
+}
+
+.mv-pip {
+    width: 28px;
+    height: 28px;
+    border-radius: 14px;
+    margin-right: 4px;
+    -unity-text-align: middle-center;
+    -unity-font-style: bold;
+    font-size: 13px;
+}
+
+.mv-pip--small {
+    width: 22px;
+    height: 22px;
+    border-radius: 11px;
+    font-size: 11px;
+}
+
+/* ---------- campos ---------- */
+.mv-field > Label {
+    font-size: 13px;
+    color: var(--mv-muted);
+    min-width: 0;
+    margin-bottom: 6px;
+}
+
+.mv-field {
+    flex-direction: column;
+    margin: 0;
+}
+
+.mv-field .unity-base-text-field__input {
+    min-height: 46px;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: var(--mv-line);
+    background-color: var(--mv-surface);
+    color: var(--mv-text);
+    padding: 8px 12px;
+    font-size: 15px;
+}
+
+.mv-field--code .unity-base-text-field__input {
+    height: 168px;
+    background-color: #14110e;
+    font-size: 13px;
+    -unity-text-align: upper-left;
+    white-space: normal;
+}
+
+/* ---------- prévia da importação ---------- */
+.mv-preview {
+    border-width: 1px;
+    border-radius: 14px;
+    border-color: var(--mv-line);
+    overflow: hidden;
+}
+
+.mv-preview-row {
+    flex-direction: row;
+    align-items: center;
+    min-height: 48px;
+    padding: 8px 12px;
+    border-top-width: 1px;
+    border-color: #2a2219;
+}
+
+.mv-preview-row--problem {
+    background-color: #2a1712;
+}
+
+.mv-preview-row__qty {
+    width: 30px;
+    color: var(--mv-muted);
+    -unity-text-align: middle-right;
+    margin-right: 10px;
+}
+
+.mv-preview-row__body {
+    flex-grow: 1;
+    flex-shrink: 1;
+}
+
+.mv-preview-row--problem .mv-row__title {
+    color: #f2b6a3;
+}
+
+.mv-preview-row--problem .mv-row__sub {
+    color: var(--mv-bad);
+}
+
+.mv-summary {
+    flex-direction: row;
+    justify-content: space-between;
+    font-size: 13px;
+}
+
+.mv-ok-text {
+    color: var(--mv-ok);
+}
+
+.mv-bad-text {
+    color: var(--mv-bad);
+}
+
+/* ---------- detalhe do deck ---------- */
+.mv-stats {
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.mv-stat {
+    width: 31%;
+    border-width: 1px;
+    border-radius: 12px;
+    border-color: var(--mv-line);
+    padding: 10px;
+    align-items: center;
+}
+
+.mv-stat__value {
+    font-size: 22px;
+    -unity-font-style: bold;
+    color: var(--mv-gold-pale);
+}
+
+.mv-stat__label {
+    font-size: 12px;
+    color: var(--mv-muted);
+}
+
+.mv-card-row {
+    flex-direction: row;
+    align-items: center;
+    min-height: 60px;
+    border-bottom-width: 1px;
+    border-color: #2a2219;
+}
+
+.mv-card-row > * {
+    margin-right: 10px;
+}
+
+.mv-card-row__qty {
+    width: 26px;
+    color: var(--mv-muted);
+    -unity-text-align: middle-right;
+}
+
+/* ---------- folha inferior (Trocar modelo) ---------- */
+.mv-sheet-backdrop {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(8, 6, 4, 0.72);
+    justify-content: flex-end;
+}
+
+.mv-sheet {
+    background-color: var(--mv-surface);
+    border-top-width: 1px;
+    border-color: var(--mv-gold);
+    border-top-left-radius: 22px;
+    border-top-right-radius: 22px;
+    padding: 20px 20px 28px 20px;
+}
+
+.mv-sheet > * {
+    margin-bottom: 12px;
+}
+
+.mv-grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+}
+
+.mv-grid > .mv-chip {
+    width: 32%;
+    min-height: 48px;
+    border-radius: 12px;
+    margin-bottom: 8px;
+    -unity-text-align: middle-center;
+}
+
+/* ---------- bestiário ---------- */
+.mv-beast {
+    width: 48%;
+    min-height: 140px;
+    margin-bottom: 12px;
+    padding: 14px;
+    border-width: 1px;
+    border-radius: 14px;
+    border-color: var(--mv-line);
+    background-color: var(--mv-surface);
+}
+
+.mv-beast__art {
+    height: 72px;
+    border-radius: 10px;
+    background-color: #14110e;
+    margin-bottom: 8px;
+}
+
+/* ---------- configurações ---------- */
+.mv-list {
+    border-width: 1px;
+    border-radius: 14px;
+    border-color: var(--mv-line);
+    overflow: hidden;
+}
+
+.mv-toggle-row {
+    flex-direction: row;
+    align-items: center;
+    min-height: 60px;
+    padding: 8px 16px;
+    border-top-width: 1px;
+    border-color: #2a2219;
+}
+
+.mv-switch {
+    width: 52px;
+    height: 30px;
+    margin: 0;
+    padding: 0;
+    border-width: 1px;
+    border-radius: 15px;
+    border-color: #5a4a36;
+    background-color: var(--mv-raised);
+}
+
+.mv-switch__knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 22px;
+    height: 22px;
+    border-radius: 11px;
+    background-color: #8a7c66;
+    transition-property: left;
+    transition-duration: 0.15s;
+}
+
+.mv-switch--on {
+    background-color: #5c4a24;
+    border-color: var(--mv-gold);
+}
+
+.mv-switch--on > .mv-switch__knob {
+    left: 25px;
+    background-color: var(--mv-gold-bright);
+}
+
+.mv-slider .unity-base-slider__tracker {
+    background-color: var(--mv-raised);
+    border-color: var(--mv-line);
+}
+
+.mv-slider .unity-base-slider__dragger {
+    background-color: var(--mv-gold);
+    border-color: var(--mv-gold-bright);
+}
+
+/* ---------- onboarding ---------- */
+.mv-centered {
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+}
+
+.mv-centered > * {
+    margin-bottom: 20px;
+}
+
+.mv-art-circle {
+    width: 220px;
+    height: 220px;
+    border-radius: 110px;
+    border-width: 1px;
+    border-color: var(--mv-line);
+    background-color: var(--mv-surface);
+    align-items: center;
+    justify-content: center;
+}
+
+.mv-dots {
+    flex-direction: row;
+}
+
+.mv-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    margin: 0 4px;
+    background-color: var(--mv-line);
+}
+
+.mv-dot--active {
+    width: 24px;
+    background-color: var(--mv-gold-bright);
+}

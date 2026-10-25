@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement style="flex-grow: 1;">
+        <ui:VisualElement class="mv-header">
+            <ui:Button name="back" class="mv-icon-btn" tooltip="Voltar"><MtgAr.UI.LineArt kind="Back" picking-mode="Ignore" style="width: 24px; height: 24px;" /></ui:Button>
+            <ui:Label name="title" class="mv-header__title" text="Meus decks" />
+            <ui:Button name="import" class="mv-btn mv-btn--ghost" text="+ Importar" />
+        </ui:VisualElement>
+        <ui:ScrollView name="list" class="mv-content" />
+        <ui:Label name="empty" class="mv-tip" text="Nenhum deck ainda. Toque em Importar e cole a lista do Moxfield, Arena ou MTGO." style="margin: 0 20px; display: none;" />
+    </ui:VisualElement>
+</ui:UXML>

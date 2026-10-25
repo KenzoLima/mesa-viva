@@ -1,0 +1,26 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement style="flex-grow: 1;">
+        <ui:VisualElement class="mv-header">
+            <ui:Button name="back" class="mv-icon-btn" tooltip="Voltar"><MtgAr.UI.LineArt kind="Back" picking-mode="Ignore" style="width: 24px; height: 24px;" /></ui:Button>
+            <ui:Label name="title" class="mv-header__title" text="Deck" />
+        </ui:VisualElement>
+        <ui:VisualElement class="mv-stats" style="padding: 4px 20px 12px 20px;">
+            <ui:VisualElement class="mv-stat"><ui:Label name="stat-total" class="mv-stat__value" text="0" /><ui:Label class="mv-stat__label" text="cartas" /></ui:VisualElement>
+            <ui:VisualElement class="mv-stat"><ui:Label name="stat-creatures" class="mv-stat__value" text="0" /><ui:Label class="mv-stat__label" text="criaturas" /></ui:VisualElement>
+            <ui:VisualElement class="mv-stat"><ui:Label name="stat-lands" class="mv-stat__value" text="0" /><ui:Label class="mv-stat__label" text="terrenos" /></ui:VisualElement>
+        </ui:VisualElement>
+        <ui:ScrollView name="cards" style="flex-grow: 1; padding: 0 20px;" />
+        <ui:VisualElement class="mv-footer">
+            <ui:Button name="play" class="mv-btn mv-btn--primary mv-btn--large" text="Jogar com este deck" />
+        </ui:VisualElement>
+        <ui:VisualElement name="sheet" class="mv-sheet-backdrop" style="display: none;">
+            <ui:VisualElement class="mv-sheet">
+                <ui:Label class="mv-section-label" text="MODELO 3D DE" />
+                <ui:Label name="sheet-card" class="mv-display" text="" style="font-size: 20px;" />
+                <ui:VisualElement name="sheet-options" class="mv-grid" />
+                <ui:Button name="sheet-auto" class="mv-btn mv-btn--ghost" text="Voltar ao automático" />
+                <ui:Button name="sheet-cancel" class="mv-btn mv-btn--ghost" text="Cancelar" style="border-width: 0;" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
