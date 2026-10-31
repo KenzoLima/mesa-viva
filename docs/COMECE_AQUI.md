@@ -43,16 +43,14 @@ Na instalação do Unity 6, marque o módulo **iOS Build Support**. Não precisa
 
 ## 4. Abrir no Unity pela primeira vez
 
+> ✅ **Os passos 4, 5 e 6 já vêm prontos no repositório** (Unity **6000.3.27f1**). `Packages/` e `ProjectSettings/` estão no Git, e a configuração dos passos 5 e 6 é feita pelo menu **Mesa Viva → Configurar projeto** (`Assets/_Project/Editor/ProjectSetup.cs`). Se algo sair do lugar, rode esse menu de novo: ele só mexe no que estiver errado.
+> Sem abrir o Unity, dá para rodar o mesmo script pela linha de comando:
+> `Unity.exe -batchmode -nographics -buildTarget iOS -projectPath unity-app -executeMethod MtgAr.EditorTools.ProjectSetup.RunBatch -logFile -`
+> Os passos abaixo ficam como referência do que o script faz.
+
 1. Unity Hub → **Projects → Add → Add project from disk** → selecione `MesaViva\unity-app`.
-2. Escolha a versão **Unity 6** que você instalou e abra. A primeira abertura demora de 5 a 15 min.
-   - O Unity cria sozinho as pastas `ProjectSettings/`, `Packages/` e `Library/`. A `Library/` nunca vai para o Git.
-3. Vai aparecer um aviso de **erros de compilação / Safe Mode**. É normal: faltam os pacotes. Clique em **Enter Safe Mode** (ou **Ignore**).
-4. **Window → Package Manager → Unity Registry** e instale:
-   - **AR Foundation**
-   - **Apple ARKit XR Plugin**
-   - **Universal RP** (Universal Render Pipeline)
-   - **Test Framework**, se ainda não estiver instalado
-5. Quando os erros sumirem, o Unity sai do Safe Mode sozinho.
+2. Abra com o **Unity 6000.3.27f1**. A primeira abertura demora de 5 a 15 min, porque o Unity cria a pasta `Library/`, que nunca vai para o Git.
+3. Os pacotes já estão no `Packages/manifest.json`: AR Foundation e Apple ARKit 6.3.5, Universal RP 17.3.0 e Test Framework 1.6.0.
 
 ## 5. Configurar o visual (URP) e a câmera do AR
 
@@ -69,7 +67,7 @@ Na instalação do Unity 6, marque o módulo **iOS Build Support**. Não precisa
    - aba **iOS** (ícone do celular): ✅ **Apple ARKit**;
    - aba **PC/Mac/Linux** (ícone do monitor): ✅ **XR Simulation**. É o que permite testar o AR no Editor, sem iPhone.
 3. **XR Plug-in Management → Project Validation** → **Fix All**, e repita até não sobrar erro.
-4. Os ajustes do **Player** (nome do app, Bundle ID, texto do pedido de câmera) estão no `IPHONE_GUIA.md` §4. Pode fazer agora ou depois.
+4. Os ajustes do **Player** estão no `IPHONE_GUIA.md` §4. O script já preenche nome, versão, texto do pedido de câmera, ARM64 e assinatura manual. **Company Name e Bundle Identifier ficam com você**, porque dependem da sua conta Apple.
 
 ## 7. Montar as duas cenas
 

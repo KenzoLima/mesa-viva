@@ -21,6 +21,8 @@ unity-app/   projeto Unity (abra esta pasta no Unity Hub) — Assets/_Project:
                Scripts/UI       roteador e telas do menu (UI Toolkit)
                Scripts/Table    calibração da mesa, status do rastreamento
                Scripts/Phase0   Image Tracking + criaturas (Fase 0)
+               Editor/          menu Mesa Viva → Configurar projeto (URP, iOS, ARKit, Player)
+               Settings/        URP e URP_Renderer (com AR Background Renderer Feature)
                Resources/       telas (UXML) e model_map.json
                UI/              estilos (Theme.uss, Menus.uss), AppShell e tela de calibração
                Shaders/         grade dourada dos planos

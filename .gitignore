@@ -16,6 +16,7 @@
 /unity-app/*.csproj
 /unity-app/*.unityproj
 /unity-app/*.sln
+/unity-app/*.slnx
 /unity-app/*.suo
 /unity-app/*.tmp
 /unity-app/*.user
@@ -30,6 +31,9 @@
 /unity-app/sysinfo.txt
 /unity-app/crashlytics-build.properties
 /unity-app/Assets/StreamingAssets/aa/
+# Preferências pessoais do XR Simulation (cada um tem as suas)
+/unity-app/Assets/XR/UserSimulationSettings/
+/unity-app/Assets/XR/UserSimulationSettings.meta
 # Arquivos de build
 *.apk
 *.aab
