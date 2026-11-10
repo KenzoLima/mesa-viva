@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#120e16" />
+  <title>Mesa Viva</title>
+  <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body>
+  <main id="menu" class="screen">
+    <header>
+      <h1>Mesa Viva</h1>
+      <p class="tag">Suas cartas de Magic ganham vida sobre a mesa</p>
+    </header>
+
+    <button id="btn-cards" class="mode" disabled>
+      <strong>Cartas</strong>
+      <span id="cards-info">Carregando…</span>
+    </button>
+    <button id="btn-table" class="mode" disabled>
+      <strong>Mesa</strong>
+      <span id="table-info">Verificando o aparelho…</span>
+    </button>
+
+    <section class="bestiary">
+      <h2>Bestiário</h2>
+      <input id="search" type="search" placeholder="Nome da carta (inglês ou português)" autocomplete="off" />
+      <ul id="results"></ul>
+    </section>
+
+    <footer>
+      Projeto de fã, gratuito e não comercial. Magic: The Gathering é da Wizards of the Coast. Dados do Scryfall.
+    </footer>
+  </main>
+
+  <!-- Modo Cartas (MindAR) -->
+  <div id="cards-view" class="ar-view" hidden>
+    <div id="cards-container"></div>
+    <div class="hud">
+      <p id="cards-status" class="status"></p>
+      <button id="cards-exit" class="ghost">Sair</button>
+    </div>
+  </div>
+
+  <!-- Overlay do modo Mesa (WebXR dom-overlay) -->
+  <div id="xr-overlay" hidden>
+    <p id="xr-status" class="status"></p>
+    <div class="xr-controls">
+      <label id="xr-size-row" hidden>Tamanho <input id="xr-size" type="range" min="0.5" max="2" step="0.05" value="1" /></label>
+      <select id="xr-card" hidden></select>
+      <button id="xr-confirm" hidden>Confirmar mesa</button>
+      <button id="xr-recalibrate" class="ghost" hidden>Recalibrar</button>
+      <button id="xr-exit" class="ghost">Sair</button>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

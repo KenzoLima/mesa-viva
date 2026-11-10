@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Compilar cartas</title>
+  <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body>
+  <main class="screen">
+    <h1>Compilar cartas</h1>
+    <p>
+      Escolha as imagens das cartas que o modo Cartas deve reconhecer. <strong>O nome do arquivo é o nome da carta</strong>
+      (ex.: <code>Llanowar Elves.jpg</code>). O <code>ml/scripts/download_card_image.py</code> já baixa nesse formato.
+    </p>
+    <input id="files" type="file" accept="image/*" multiple />
+    <button id="go" disabled>Compilar</button>
+    <p id="progress" class="status" hidden></p>
+    <p id="done" hidden>
+      Pronto. Salve os dois arquivos em <code>web/public/targets/</code> e recarregue o app:<br />
+      <a id="dl-mind" download="targets.mind">targets.mind</a> · <a id="dl-json" download="targets.json">targets.json</a>
+    </p>
+    <p><a href="./">← Voltar</a></p>
+  </main>
+  <script type="module">
+    import 'mind-ar/dist/mindar-image.prod.js';
+
+    const $ = (id) => document.getElementById(id);
+    $('files').onchange = () => { $('go').disabled = !$('files').files.length; };
+
+    const loadImage = (file) => new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
+    });
+
+    $('go').onclick = async () => {
+      const files = [...$('files').files].sort((a, b) => a.name.localeCompare(b.name));
+      $('go').disabled = true;
+      $('progress').hidden = false;
+      const images = await Promise.all(files.map(loadImage));
+      const compiler = new window.MINDAR.IMAGE.Compiler();
+      await compiler.compileImageTargets(images, (p) => { $('progress').textContent = `Compilando… ${p.toFixed(0)}%`; });
+      const mind = new Blob([await compiler.exportData()]);
+      const list = files.map((f) => ({ name: f.name.replace(/\.[^.]+$/, '').replace(/_/g, ' ') }));
+      $('dl-mind').href = URL.createObjectURL(mind);
+      $('dl-json').href = URL.createObjectURL(new Blob([JSON.stringify(list, null, 2)], { type: 'application/json' }));
+      $('progress').textContent = `${files.length} carta(s) compilada(s).`;
+      $('done').hidden = false;
+    };
+  </script>
+</body>
+</html>

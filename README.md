@@ -2,6 +2,9 @@
 
 App de celular que reconhece as cartas de Magic: The Gathering sobre a mesa e faz surgir criaturas 3D animadas em cima delas, no estilo do episódio "Guerra de Cartas" de Hora de Aventura.
 
+> **Agora o desenvolvimento é na web:** [`web/README.md`](web/README.md). Modo Cartas (MindAR) no iPhone e no Android, e modo Mesa (WebXR, detecção de plano) no Android.
+> O app Unity está inteiro e guardado: [`docs/UNITY_ARQUIVO.md`](docs/UNITY_ARQUIVO.md).
+
 - 👉 **Primeiro dia (instalar, clonar, abrir no Unity):** [`docs/COMECE_AQUI.md`](docs/COMECE_AQUI.md)
 - **iPhone (build na nuvem e instalação, sem Mac):** [`docs/IPHONE_GUIA.md`](docs/IPHONE_GUIA.md)
 - **Plano completo** (arquitetura, UX, visão computacional, riscos, roadmap): [`docs/PLANO.md`](docs/PLANO.md)

@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "_comment": "Mapeamento carta -> modelo 3D. Os ids de modelo são nomes de prefab no Unity (pasta Models/TestAssets). Edite à vontade; não precisa recompilar.",
+
+  "byOracleId": {},
+
+  "labels": {
+    "goblin": "Goblin", "orc": "Orc", "elf": "Elfo", "human": "Humano", "dwarf": "Anão", "merfolk": "Tritão",
+    "vampire": "Vampiro", "zombie": "Zumbi", "skeleton": "Esqueleto", "angel": "Anjo", "demon": "Demônio",
+    "dragon": "Dragão", "giant": "Gigante", "golem": "Golem", "spider": "Aranha", "slime": "Gosma", "bat": "Morcego",
+    "mushroom": "Cogumelo", "treant": "Árvore viva", "elemental": "Elemental", "ghost": "Espírito", "wizard": "Mago",
+    "warrior": "Guerreiro", "knight": "Cavaleiro", "soldier": "Soldado", "wolf": "Lobo", "cat": "Felino",
+    "bird": "Ave", "lizard": "Réptil", "beast": "Fera", "fish": "Criatura marinha", "fairy": "Fada",
+    "winged": "Criatura alada",
+    "terrain_plains": "Bioma: planície", "terrain_water": "Bioma: água", "terrain_swamp": "Bioma: pântano",
+    "terrain_mountain": "Bioma: montanha", "terrain_forest": "Bioma: floresta", "terrain_wasteland": "Bioma: ermo",
+    "hero_planeswalker": "Herói planeswalker", "prop_battle": "Objeto: batalha", "prop_artifact": "Objeto: artefato",
+    "prop_enchantment": "Objeto: encantamento", "prop_generic": "Objeto",
+    "vfx_light": "Efeito: luz", "vfx_arcane": "Efeito: arcano", "vfx_shadow": "Efeito: sombra", "vfx_fire": "Efeito: fogo",
+    "vfx_vines": "Efeito: vinhas", "vfx_prism": "Efeito: prisma", "vfx_spark": "Efeito: faísca"
+  },
+
+  "bySubtype": {
+    "Goblin": "goblin",
+    "Orc": "orc",
+    "Elf": "elf",
+    "Human": "human",
+    "Dwarf": "dwarf",
+    "Merfolk": "merfolk",
+    "Vampire": "vampire",
+    "Zombie": "zombie",
+    "Skeleton": "skeleton",
+    "Angel": "angel",
+    "Demon": "demon",
+    "Devil": "demon",
+    "Dragon": "dragon",
+    "Giant": "giant",
+    "Golem": "golem",
+    "Construct": "golem",
+    "Spider": "spider",
+    "Slime": "slime",
+    "Ooze": "slime",
+    "Bat": "bat",
+    "Mushroom": "mushroom",
+    "Fungus": "mushroom",
+    "Treefolk": "treant",
+    "Elemental": "elemental",
+    "Spirit": "ghost",
+    "Wizard": "wizard",
+    "Warrior": "warrior",
+    "Knight": "knight",
+    "Soldier": "soldier"
+  },
+
+  "classSubtypes": [
+    "Advisor", "Archer", "Artificer", "Assassin", "Barbarian", "Bard", "Berserker", "Cleric",
+    "Druid", "Knight", "Monk", "Mystic", "Ninja", "Noble", "Peasant", "Pilot", "Pirate",
+    "Ranger", "Rogue", "Samurai", "Scout", "Shaman", "Soldier", "Warlock", "Warrior", "Wizard"
+  ],
+
+  "families": {
+    "canine": { "model": "wolf", "subtypes": ["Wolf", "Hound", "Dog", "Jackal", "Fox", "Werewolf"] },
+    "feline": { "model": "cat", "subtypes": ["Cat", "Lion"] },
+    "bird": { "model": "bird", "subtypes": ["Bird", "Phoenix", "Griffin", "Harpy"] },
+    "reptile": { "model": "lizard", "subtypes": ["Lizard", "Snake", "Crocodile", "Salamander", "Wurm", "Hydra", "Drake", "Dinosaur"] },
+    "beast": { "model": "beast", "subtypes": ["Beast", "Bear", "Boar", "Ox", "Elk", "Rhino", "Elephant", "Ape"] },
+    "insect": { "model": "spider", "subtypes": ["Insect", "Scorpion"] },
+    "sea": { "model": "fish", "subtypes": ["Fish", "Kraken", "Leviathan", "Octopus", "Serpent", "Whale", "Crab", "Shark"] },
+    "horror": { "model": "demon", "subtypes": ["Horror", "Nightmare", "Eldrazi"] },
+    "undead": { "model": "skeleton", "subtypes": ["Wraith", "Shade", "Specter"] },
+    "faerie": { "model": "fairy", "subtypes": ["Faerie", "Sprite"] }
+  },
+
+  "byKeyword": {
+    "Flying": "winged"
+  },
+
+  "byCreatureCardType": {
+    "Artifact": "golem"
+  },
+
+  "byColorFallback": {
+    "W": "elemental", "U": "elemental", "B": "elemental", "R": "elemental", "G": "elemental",
+    "M": "elemental", "C": "golem"
+  },
+
+  "lands": {
+    "bySubtype": {
+      "Plains": "terrain_plains", "Island": "terrain_water", "Swamp": "terrain_swamp",
+      "Mountain": "terrain_mountain", "Forest": "terrain_forest"
+    },
+    "byManaColor": {
+      "W": "terrain_plains", "U": "terrain_water", "B": "terrain_swamp",
+      "R": "terrain_mountain", "G": "terrain_forest"
+    },
+    "default": "terrain_wasteland"
+  },
+
+  "nonCreature": {
+    "Planeswalker": "hero_planeswalker",
+    "Battle": "prop_battle",
+    "Artifact": "prop_artifact",
+    "Enchantment": "prop_enchantment",
+    "default": "prop_generic"
+  },
+
+  "spells": {
+    "W": "vfx_light", "U": "vfx_arcane", "B": "vfx_shadow", "R": "vfx_fire", "G": "vfx_vines",
+    "M": "vfx_prism", "C": "vfx_spark"
+  },
+
+  "scale": { "min": 0.8, "max": 1.6, "powerAtMin": 1, "powerAtMax": 7 }
+}
