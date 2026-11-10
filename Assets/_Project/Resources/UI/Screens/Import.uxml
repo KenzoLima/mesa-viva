@@ -1,0 +1,20 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement style="flex-grow: 1;">
+        <ui:VisualElement class="mv-header">
+            <ui:Button name="back" class="mv-icon-btn" tooltip="Voltar"><MtgAr.UI.LineArt kind="Back" picking-mode="Ignore" style="width: 24px; height: 24px;" /></ui:Button>
+            <ui:Label name="title" class="mv-header__title" text="Importar deck" />
+        </ui:VisualElement>
+        <ui:ScrollView class="mv-content">
+            <ui:TextField name="deck-name" label="Nome do deck" value="Novo deck" class="mv-field" />
+            <ui:TextField name="deck-text" label="Lista (cole do Moxfield, Arena ou MTGO; nomes em português valem)" multiline="true" class="mv-field mv-field--code" />
+            <ui:VisualElement class="mv-summary">
+                <ui:Label name="ok-count" class="mv-ok-text" text="0 cartas reconhecidas" />
+                <ui:Label name="problem-count" class="mv-ok-text" text="Nenhum problema" />
+            </ui:VisualElement>
+            <ui:VisualElement name="preview" class="mv-preview" />
+        </ui:ScrollView>
+        <ui:VisualElement class="mv-footer">
+            <ui:Button name="save" class="mv-btn mv-btn--primary mv-btn--large" text="Salvar deck" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

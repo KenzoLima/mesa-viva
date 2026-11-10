@@ -1,0 +1,106 @@
+/* Tokens de design "fantasia sombria" — mesmos valores do protótipo (quadro "Tokens de design"). */
+:root {
+    --mv-bg: #0f0d0b;
+    --mv-surface: #1a1612;
+    --mv-raised: #241e18;
+    --mv-line: #3d3226;
+    --mv-line-strong: #5a4a36;
+    --mv-gold: #c9a24d;
+    --mv-gold-bright: #e6c27a;
+    --mv-gold-pale: #f3d99c;
+    --mv-text: #ede3cf;
+    --mv-muted: #b0a48c;
+    --mv-ink: #16120e;
+    --mv-ok: #9cc98a;
+    --mv-warn: #e6b45a;
+    --mv-bad: #e88a6e;
+    --mv-mana-w: #efe6cf;
+    --mv-mana-u: #6aa6d9;
+    --mv-mana-b: #9a86ad;
+    --mv-mana-r: #e0704f;
+    --mv-mana-g: #6fae6a;
+    --mv-mana-c: #8a7c66;
+    --mv-radius-btn: 12px;
+    --mv-radius-panel: 16px;
+    --mv-touch: 44px;
+
+    color: var(--mv-text);
+    font-size: 15px;
+    /* Fontes: importe Inter e Cinzel (Google Fonts, licença OFL) como Font Asset e ligue aqui:
+       -unity-font-definition: url("project://database/Assets/_Project/UI/Fonts/Inter-Regular SDF.asset"); */
+}
+
+.mv-title {
+    -unity-font-style: bold;
+    color: var(--mv-gold-pale);
+    font-size: 18px;
+    /* -unity-font-definition: url("project://database/Assets/_Project/UI/Fonts/Cinzel-Bold SDF.asset"); */
+}
+
+.mv-muted {
+    color: var(--mv-muted);
+    font-size: 13px;
+    white-space: normal;
+}
+
+.mv-panel {
+    background-color: rgba(22, 18, 14, 0.94);
+    border-width: 1px;
+    border-color: var(--mv-gold);
+    border-radius: var(--mv-radius-panel);
+    padding: 14px 18px;
+}
+
+.mv-btn {
+    min-height: var(--mv-touch);
+    min-width: var(--mv-touch);
+    padding: 0 14px;
+    margin: 0;
+    border-width: 1px;
+    border-radius: var(--mv-radius-btn);
+    border-color: var(--mv-line-strong);
+    background-color: rgba(20, 17, 13, 0.85);
+    color: var(--mv-text);
+    font-size: 13px;
+    -unity-font-style: bold;
+}
+
+.mv-btn:hover {
+    border-color: var(--mv-gold);
+}
+
+.mv-btn:active {
+    background-color: var(--mv-raised);
+}
+
+.mv-btn--primary {
+    background-color: var(--mv-gold);
+    border-color: var(--mv-gold-bright);
+    color: var(--mv-ink);
+}
+
+.mv-btn--primary:active {
+    background-color: var(--mv-gold-bright);
+}
+
+.mv-chip {
+    min-height: 40px;
+    padding: 0 12px;
+    margin: 0;
+    border-width: 1px;
+    border-radius: 20px;
+    border-color: var(--mv-line-strong);
+    background-color: rgba(20, 17, 13, 0.85);
+    color: var(--mv-text);
+    font-size: 13px;
+}
+
+.mv-chip--selected {
+    border-color: var(--mv-gold-bright);
+    background-color: #3a2e1c;
+    color: var(--mv-gold-pale);
+}
+
+.mv-hidden {
+    display: none;
+}

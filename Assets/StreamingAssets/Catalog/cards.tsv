@@ -1,0 +1,26 @@
+# mesa-viva catalog schema=1 exported_at=2026-10-25T14:23:42+00:00 source_built_at=2026-10-25T14:23:42+00:00
+oracle_id	name	layout	is_token	type_line	card_types	subtypes	colors	power	toughness	keywords	produced_mana
+653f2d7f-83b4-5831-92e9-c2d2f8a82eab	Aether Vial	normal	0	Artifact	Artifact						
+6582bc96-2a4e-54e4-b7c0-f3478d42fe4f	Breeding Pool	normal	0	Land — Forest Island	Land	Forest|Island					G|U
+f9e454f2-67f7-5915-84ec-b502137be973	Delver of Secrets // Insectile Aberration	transform	0	Creature — Human Wizard // Creature — Human Insect	Creature	Human|Wizard	U	1	1	Transform	
+f947f073-08f8-59a5-b4f7-3c506287f659	Dryad Arbor	normal	0	Land Creature — Forest Dryad	Land|Creature	Forest|Dryad	G	1	1		G
+315d9412-d559-5276-8326-172a29d4e930	Fire // Ice	split	0	Instant // Instant	Instant		R|U				
+7f568108-c457-5467-bce9-744bdc6564fa	Forest	normal	0	Basic Land — Forest	Land	Forest					G
+3f6815c9-aeba-56e0-aa96-4be63c11001d	Goblin	token	1	Token Creature — Goblin	Token|Creature	Goblin	R	1	1		
+86c827a2-bbcf-5e69-a529-b42d090fa20a	Goblin Guide	normal	0	Creature — Goblin Scout	Creature	Goblin|Scout	R	2	2	Haste	
+ce3a8cf7-6ca7-5a0d-a6aa-e7bc94998193	Grizzly Bears	normal	0	Creature — Bear	Creature	Bear	G	2	2		
+5102824c-46ab-524b-81b2-7aa358349551	Island	normal	0	Basic Land — Island	Land	Island					U
+46aa3ea8-ea93-56f6-b030-ce2cd1394976	Jötun Grunt	normal	0	Creature — Giant Soldier	Creature	Giant|Soldier	W	4	4		
+4af6224e-df0c-5a8b-87f3-79b689eeef8f	Lightning Bolt	normal	0	Instant	Instant		R				
+18c1f87e-a85e-5eb2-be10-ed082687ce47	Liliana of the Veil	normal	0	Legendary Planeswalker — Liliana	Planeswalker	Liliana	B				
+744cac5c-9d74-548b-8fdd-62217bc32daf	Llanowar Elves	normal	0	Creature — Elf Druid	Creature	Elf|Druid	G	1	1		G
+beae48af-6861-5717-9660-65cad9910884	Llanowar Visionary // Llanowar Visionary	reversible_card	0	Creature — Elf Druid // Creature — Elf Druid	Creature	Elf|Druid	G	2	2		
+8b1c4935-fb50-50b9-aad8-5a842b67f502	Llanowar Wastes	normal	0	Land	Land						B|C|G
+64eadbaa-7f30-590a-aa59-c322b3b11dda	Myr Enforcer	normal	0	Artifact Creature — Myr	Artifact|Creature	Myr		4	4	Affinity	
+adb112f5-8a5b-5c9c-a663-0f9670cd1917	Ornithopter	normal	0	Artifact Creature — Thopter	Artifact|Creature	Thopter		0	2	Flying	
+3f4b12f9-f867-59ac-a8a4-8b7b03475cb5	Progenitus	normal	0	Legendary Creature — Hydra Avatar	Creature	Hydra|Avatar	W|U|B|R|G	10	10		
+6b51832e-94fd-5ec4-b148-8f2748964c0f	Serra Angel	normal	0	Creature — Angel	Creature	Angel	W	4	4	Flying|Vigilance	
+13741ed1-5e8f-59da-8bc4-8441f74fa8b8	Shivan Dragon	normal	0	Creature — Dragon	Creature	Dragon	R	5	5	Flying	
+422f03aa-270b-54fb-b574-6bf804b029e5	Sol Ring	normal	0	Artifact	Artifact						
+a43de946-f630-5add-aeff-abc05bda0bc7	Tarmogoyf	normal	0	Creature — Lhurgoyf	Creature	Lhurgoyf	G	*	1+*		
+f34e8295-d741-5a7d-9e08-3b09918d20d7	Wastes	normal	0	Basic Land	Land						C

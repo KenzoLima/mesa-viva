@@ -136,3 +136,36 @@ crashlytics-build.properties
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# ---------- Mesa Viva ----------
+/[Aa]ssets/StreamingAssets/aa/
+# Preferências pessoais do XR Simulation (cada um tem as suas)
+/[Aa]ssets/XR/UserSimulationSettings/
+/[Aa]ssets/XR/UserSimulationSettings.meta
+*.ipa
+*.app
+
+# Python
+__pycache__/
+.pytest_cache/
+*.pyc
+.venv/
+venv/
+ml/data/
+ml/ref_images/
+
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Vídeos de teste são grandes: ficam fora do git (ou use Git LFS)
+test-videos/
+
+# Segredos da Apple (NUNCA no Git)
+*.p12
+*.key
+*.cer
+*.csr
+*.pem
+*.mobileprovision

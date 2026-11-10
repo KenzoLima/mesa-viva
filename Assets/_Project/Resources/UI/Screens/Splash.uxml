@@ -1,0 +1,10 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement class="mv-centered">
+        <MtgAr.UI.LineArt kind="Emblem" style="width: 148px; height: 148px;" />
+        <ui:Label class="mv-logo" text="MESA VIVA" />
+        <ui:Label class="mv-text" text="Suas cartas de Magic ganham vida sobre a mesa." style="color: #b0a48c; -unity-text-align: middle-center; font-size: 16px;" />
+        <ui:Button name="start" class="mv-btn mv-btn--primary mv-btn--large" text="Começar" style="width: 280px;" />
+        <ui:Label name="loading" class="mv-small" text="Carregando cartas…" />
+        <ui:Label class="mv-small" text="Projeto de fã · não oficial · não afiliado à Wizards of the Coast" />
+    </ui:VisualElement>
+</ui:UXML>

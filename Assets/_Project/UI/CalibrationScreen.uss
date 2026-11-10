@@ -1,0 +1,193 @@
+/* Tela de calibração da mesa (paisagem). Usa as variáveis de Theme.uss. */
+
+.cal-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+/* Recebe toques e arrastos sobre a câmera; fica atrás de todo o resto. */
+.cal-tap-layer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.cal-status {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    translate: -50% 0;
+    flex-direction: row;
+    align-items: center;
+    min-height: 32px;
+    padding: 0 14px;
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: var(--mv-line);
+    background-color: rgba(20, 17, 13, 0.85);
+}
+
+.cal-status__dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 5px;
+    margin-right: 8px;
+    background-color: var(--mv-ok);
+}
+
+.cal-status__dot--warning {
+    background-color: var(--mv-warn);
+}
+
+.cal-status__dot--error {
+    background-color: var(--mv-bad);
+}
+
+.cal-status__label {
+    font-size: 13px;
+    color: var(--mv-text);
+}
+
+.cal-menu {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+}
+
+.cal-banner {
+    position: absolute;
+    top: 56px;
+    left: 50%;
+    translate: -50% 0;
+    width: 420px;
+    align-items: center;
+}
+
+.cal-banner > Label {
+    -unity-text-align: middle-center;
+}
+
+.cal-progress {
+    width: 100%;
+    height: 6px;
+    margin-top: 8px;
+    border-radius: 3px;
+    background-color: #2a2219;
+    overflow: hidden;
+}
+
+.cal-progress__fill {
+    height: 100%;
+    width: 0;
+    background-color: var(--mv-gold);
+}
+
+.cal-toast {
+    position: absolute;
+    bottom: 84px;
+    left: 50%;
+    translate: -50% 0;
+    padding: 10px 16px;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: var(--mv-bad);
+    background-color: rgba(60, 20, 12, 0.95);
+    color: #f8d3c6;
+    font-size: 13px;
+}
+
+.cal-center-panel {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    translate: -50% -50%;
+    width: 400px;
+}
+
+.cal-center-panel > Label {
+    margin-bottom: 6px;
+}
+
+.cal-center-panel--error {
+    border-color: var(--mv-bad);
+}
+
+.cal-seat {
+    position: absolute;
+    top: 56px;
+    right: 12px;
+    width: 200px;
+    padding: 12px;
+}
+
+.cal-seat__grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    margin-top: 8px;
+}
+
+.cal-seat__grid > Button {
+    width: 48%;
+    margin-bottom: 6px;
+    border-radius: 10px;
+}
+
+.cal-toolbar {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    flex-direction: row;
+    align-items: center;
+}
+
+.cal-toolbar > * {
+    margin-right: 8px;
+}
+
+.cal-toolbar__spacer {
+    flex-grow: 1;
+}
+
+.cal-size {
+    flex-direction: row;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 12px;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: var(--mv-line-strong);
+    background-color: rgba(20, 17, 13, 0.85);
+}
+
+.cal-size > Label {
+    font-size: 13px;
+    margin-right: 8px;
+}
+
+.cal-size Slider {
+    width: 120px;
+    margin: 0;
+}
+
+.cal-flash {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    translate: -50% -50%;
+    font-size: 30px;
+    -unity-font-style: bold;
+    color: var(--mv-gold-pale);
+    transition-property: opacity;
+    transition-duration: 1.2s;
+}
+
+.cal-flash--fading {
+    opacity: 0;
+}

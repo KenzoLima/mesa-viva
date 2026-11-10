@@ -1,0 +1,62 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="project://database/Assets/_Project/UI/Theme.uss" />
+    <Style src="project://database/Assets/_Project/UI/CalibrationScreen.uss" />
+
+    <ui:VisualElement name="root" class="cal-root" picking-mode="Ignore">
+        <ui:VisualElement name="tap-layer" class="cal-tap-layer" />
+
+        <ui:VisualElement name="status" class="cal-status" picking-mode="Ignore">
+            <ui:VisualElement name="status-dot" class="cal-status__dot" picking-mode="Ignore" />
+            <ui:Label name="status-label" class="cal-status__label" text="Iniciando a câmera…" picking-mode="Ignore" />
+        </ui:VisualElement>
+
+        <ui:Button name="menu" class="mv-btn cal-menu" text="‹ Menu" />
+
+        <ui:VisualElement name="banner" class="mv-panel cal-banner" picking-mode="Ignore">
+            <ui:Label name="banner-title" class="mv-title" text="Mova o celular devagar sobre a mesa" picking-mode="Ignore" />
+            <ui:Label name="banner-sub" class="mv-muted" text="Procurando uma superfície plana" picking-mode="Ignore" />
+            <ui:VisualElement name="progress" class="cal-progress" picking-mode="Ignore">
+                <ui:VisualElement name="progress-fill" class="cal-progress__fill" picking-mode="Ignore" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:Label name="invalid-tap" class="cal-toast mv-hidden" text="Toque sobre a mesa detectada (a área com a grade dourada)." picking-mode="Ignore" />
+
+        <ui:VisualElement name="no-table" class="mv-panel cal-center-panel mv-hidden">
+            <ui:Label class="mv-title" text="Não encontrei a mesa" />
+            <ui:Label class="mv-muted" text="Superfícies lisas e sem textura são difíceis para a câmera. Tente:" />
+            <ui:Label text="• Usar um playmat ou um pano com estampa" />
+            <ui:Label text="• Acender mais uma luz" />
+            <ui:Label text="• Mover o celular devagar, de um lado para o outro, a uns 50 cm da mesa" style="white-space: normal;" />
+            <ui:Button name="retry" class="mv-btn mv-btn--primary" text="Tentar de novo" style="align-self: flex-end; margin-top: 6px;" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="seat" class="mv-panel cal-seat mv-hidden">
+            <ui:Label class="mv-title" text="De que lado você está?" style="font-size: 14px;" />
+            <ui:VisualElement class="cal-seat__grid">
+                <ui:Button name="seat-near" class="mv-chip" text="Perto do celular" />
+                <ui:Button name="seat-far" class="mv-chip" text="Do outro lado" />
+                <ui:Button name="seat-left" class="mv-chip" text="À esquerda" />
+                <ui:Button name="seat-right" class="mv-chip" text="À direita" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="toolbar" class="cal-toolbar mv-hidden" picking-mode="Ignore">
+            <ui:Button name="rotate" class="mv-btn" text="Girar 90°" />
+            <ui:Button name="flip" class="mv-btn" text="Trocar lados" />
+            <ui:VisualElement class="cal-size">
+                <ui:Label text="Tamanho" />
+                <ui:Slider name="size" low-value="0.7" high-value="1.3" value="1" />
+            </ui:VisualElement>
+            <ui:VisualElement class="cal-toolbar__spacer" picking-mode="Ignore" />
+            <ui:Button name="confirm" class="mv-btn mv-btn--primary" text="Confirmar" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="lost" class="mv-panel cal-center-panel cal-center-panel--error mv-hidden" picking-mode="Ignore">
+            <ui:Label class="mv-title" text="Rastreamento perdido" style="color: #f8d3c6;" />
+            <ui:Label class="mv-muted" text="Aponte o celular para a mesa e segure parado por um instante. Nada é removido enquanto isso." />
+        </ui:VisualElement>
+
+        <ui:Label name="flash" class="cal-flash mv-hidden" text="Mesa calibrada" picking-mode="Ignore" />
+    </ui:VisualElement>
+</ui:UXML>

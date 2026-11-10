@@ -1,0 +1,12 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement style="flex-grow: 1;">
+        <ui:VisualElement class="mv-header">
+            <ui:Button name="back" class="mv-icon-btn" tooltip="Voltar"><MtgAr.UI.LineArt kind="Back" picking-mode="Ignore" style="width: 24px; height: 24px;" /></ui:Button>
+            <ui:Label name="title" class="mv-header__title" text="Bestiário" />
+        </ui:VisualElement>
+        <ui:Label class="mv-text" text="Modelos de teste (gratuitos). Os de verdade vêm depois." style="color: #b0a48c; font-size: 13px; padding: 0 24px 12px 24px;" />
+        <ui:ScrollView class="mv-content">
+            <ui:VisualElement name="grid" class="mv-grid" />
+        </ui:ScrollView>
+    </ui:VisualElement>
+</ui:UXML>

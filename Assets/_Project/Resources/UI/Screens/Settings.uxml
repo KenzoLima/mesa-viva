@@ -1,0 +1,30 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement style="flex-grow: 1;">
+        <ui:VisualElement class="mv-header">
+            <ui:Button name="back" class="mv-icon-btn" tooltip="Voltar"><MtgAr.UI.LineArt kind="Back" picking-mode="Ignore" style="width: 24px; height: 24px;" /></ui:Button>
+            <ui:Label name="title" class="mv-header__title" text="Configurações" />
+        </ui:VisualElement>
+        <ui:ScrollView class="mv-content">
+            <ui:VisualElement>
+                <ui:Label class="mv-section-label" text="QUALIDADE GRÁFICA" />
+                <ui:VisualElement name="quality" class="mv-chip-row" />
+                <ui:Label name="quality-hint" class="mv-row__sub" text="" />
+            </ui:VisualElement>
+            <ui:VisualElement name="toggles" class="mv-list" />
+            <ui:VisualElement>
+                <ui:VisualElement style="flex-direction: row; justify-content: space-between;">
+                    <ui:Label class="mv-row__title" text="Modo épico" />
+                    <ui:Label name="epic-value" text="1,2×" style="color: #e6c27a;" />
+                </ui:VisualElement>
+                <ui:Slider name="epic" low-value="1" high-value="2.5" value="1.2" class="mv-slider" />
+                <ui:Label class="mv-row__sub" text="Aumenta o tamanho das criaturas sobre as cartas. Acima de 1,5× elas podem se sobrepor às vizinhas." />
+            </ui:VisualElement>
+            <ui:VisualElement style="border-top-width: 1px; border-color: #2a2219; padding-top: 16px;">
+                <ui:Label class="mv-section-label" text="CRÉDITOS" />
+                <ui:Label class="mv-row__sub" text="Dados e imagens de cartas: Scryfall." />
+                <ui:Label class="mv-row__sub" text="Modelos de teste: Quaternius, KayKit e Kenney (CC0)." />
+                <ui:Label class="mv-row__sub" text="Magic: The Gathering é propriedade da Wizards of the Coast. Projeto de fã, gratuito e não oficial." />
+            </ui:VisualElement>
+        </ui:ScrollView>
+    </ui:VisualElement>
+</ui:UXML>

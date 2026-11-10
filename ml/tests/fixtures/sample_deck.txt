@@ -1,0 +1,26 @@
+// Deck de exemplo para testar o preview (formato Arena/Moxfield)
+Deck
+4 Llanowar Elves (M19) 314
+4x Elfos de Llanowar
+2 Delver of Secrets
+1 Shivan Dragon *F*
+2 Goblin Guide
+1 Serra Angel
+2 Grizzly Bears
+1 Ornithopter
+1 Myr Enforcer
+1 Tarmogoyf
+1 Jotun Grunt
+2 Lightning Bolt
+1 Fire/Ice
+1 Sol Ring
+1 Liliana of the Veil
+1 Dryad Arbor
+12 Forest
+4 Breeding Pool
+1 Llanowar Wastes
+1 Wastes
+
+Sideboard
+2 Relâmpago
+1 Progenitus

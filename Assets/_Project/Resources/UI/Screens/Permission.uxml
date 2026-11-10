@@ -1,0 +1,12 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement style="flex-grow: 1; justify-content: center; padding: 32px 28px;">
+        <ui:VisualElement style="width: 88px; height: 88px; border-radius: 24px; border-width: 1px; border-color: #c9a24d; background-color: #241e18; align-items: center; justify-content: center; margin-bottom: 28px;">
+            <MtgAr.UI.LineArt kind="Camera" style="width: 44px; height: 44px;" />
+        </ui:VisualElement>
+        <ui:Label class="mv-display" text="A câmera vê a mesa" style="margin-bottom: 12px;" />
+        <ui:Label class="mv-text" text="O app usa a câmera para encontrar a mesa e reconhecer as cartas. Tudo é processado no seu iPhone: o vídeo não é enviado para lugar nenhum." style="color: #b0a48c; margin-bottom: 28px;" />
+        <ui:Button name="allow" class="mv-btn mv-btn--primary mv-btn--large" text="Permitir câmera" style="margin-bottom: 10px;" />
+        <ui:Button name="later" class="mv-btn mv-btn--ghost mv-btn--large" text="Agora não" />
+        <ui:Label name="denied" class="mv-small" text="Sem a câmera, a mesa não funciona. Você pode liberar depois em Ajustes › Mesa Viva › Câmera." style="margin-top: 16px; display: none;" />
+    </ui:VisualElement>
+</ui:UXML>

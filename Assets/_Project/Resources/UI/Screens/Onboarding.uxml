@@ -1,0 +1,16 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement style="flex-grow: 1; padding: 16px 24px 24px 24px;">
+        <ui:VisualElement style="flex-direction: row; justify-content: flex-end;">
+            <ui:Button name="skip" class="mv-btn mv-btn--ghost" text="Pular" style="border-width: 0;" />
+        </ui:VisualElement>
+        <ui:VisualElement class="mv-centered">
+            <ui:VisualElement class="mv-art-circle">
+                <MtgAr.UI.LineArt name="art" kind="Stand" style="width: 140px; height: 140px;" />
+            </ui:VisualElement>
+            <ui:Label name="step-title" class="mv-display" text="Prenda o celular num suporte" style="-unity-text-align: middle-center; font-size: 24px;" />
+            <ui:Label name="step-text" class="mv-text" text="" style="color: #b0a48c; -unity-text-align: middle-center; max-width: 300px;" />
+            <ui:VisualElement name="dots" class="mv-dots" />
+        </ui:VisualElement>
+        <ui:Button name="next" class="mv-btn mv-btn--primary mv-btn--large" text="Próximo" />
+    </ui:VisualElement>
+</ui:UXML>

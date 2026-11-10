@@ -1,0 +1,8 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="project://database/Assets/_Project/UI/Theme.uss" />
+    <Style src="project://database/Assets/_Project/UI/Menus.uss" />
+    <!-- Casca do app: o AppRouter coloca as telas (Resources/UI/Screens) dentro de screen-host. -->
+    <ui:VisualElement name="app" class="mv-app">
+        <ui:VisualElement name="screen-host" class="mv-screen-host" />
+    </ui:VisualElement>
+</ui:UXML>

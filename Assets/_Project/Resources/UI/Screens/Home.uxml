@@ -1,0 +1,32 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement style="flex-grow: 1;">
+        <ui:VisualElement class="mv-header" style="padding-left: 24px;">
+            <ui:Label class="mv-header__title" text="MESA VIVA" style="letter-spacing: 3px;" />
+            <ui:Button name="settings" class="mv-icon-btn" tooltip="Configurações"><MtgAr.UI.LineArt kind="Gear" picking-mode="Ignore" style="width: 24px; height: 24px;" /></ui:Button>
+        </ui:VisualElement>
+        <ui:ScrollView class="mv-content">
+            <ui:VisualElement class="mv-hero">
+                <ui:Label class="mv-section-label" text="PRONTO PARA JOGAR" />
+                <ui:Label class="mv-display" text="Nova partida" />
+                <ui:Label class="mv-text" text="Escolha os decks, posicione o celular e calibre a mesa em uns 20 segundos." style="color: #b0a48c;" />
+                <ui:Button name="play" class="mv-btn mv-btn--primary mv-btn--large" text="Jogar" />
+            </ui:VisualElement>
+            <ui:Button name="decks" class="mv-row">
+                <MtgAr.UI.LineArt kind="Deck" picking-mode="Ignore" style="width: 28px; height: 28px;" />
+                <ui:VisualElement class="mv-row__body" picking-mode="Ignore"><ui:Label class="mv-row__title" text="Meus decks" /><ui:Label name="decks-sub" class="mv-row__sub" text="" /></ui:VisualElement>
+                <MtgAr.UI.LineArt kind="Chevron" picking-mode="Ignore" style="width: 20px; height: 20px;" />
+            </ui:Button>
+            <ui:Button name="bestiary" class="mv-row">
+                <MtgAr.UI.LineArt kind="Book" picking-mode="Ignore" style="width: 28px; height: 28px;" />
+                <ui:VisualElement class="mv-row__body" picking-mode="Ignore"><ui:Label class="mv-row__title" text="Bestiário" /><ui:Label class="mv-row__sub" text="Os modelos 3D e quais cartas usam cada um" /></ui:VisualElement>
+                <MtgAr.UI.LineArt kind="Chevron" picking-mode="Ignore" style="width: 20px; height: 20px;" />
+            </ui:Button>
+            <ui:Button name="settings-row" class="mv-row">
+                <MtgAr.UI.LineArt kind="Sliders" picking-mode="Ignore" style="width: 28px; height: 28px;" />
+                <ui:VisualElement class="mv-row__body" picking-mode="Ignore"><ui:Label class="mv-row__title" text="Configurações" /><ui:Label class="mv-row__sub" text="Qualidade, sons, modo épico, créditos" /></ui:VisualElement>
+                <MtgAr.UI.LineArt kind="Chevron" picking-mode="Ignore" style="width: 20px; height: 20px;" />
+            </ui:Button>
+            <ui:Label class="mv-tip" text="Dica: importe seu deck antes de jogar. Com a lista, o reconhecimento das cartas fica mais rápido e quase sem erros." />
+        </ui:ScrollView>
+    </ui:VisualElement>
+</ui:UXML>
