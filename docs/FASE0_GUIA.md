@@ -22,6 +22,8 @@
 
 ## 2. Montar a cena `Fase0`
 
+> O menu **Mesa Viva → Criar cenas** já cria `Fase0.unity` com o AR Session, o XR Origin, o *AR Tracked Image Manager* e o *Card Creature Spawner*. Ficam com você os passos 3 a 5: as imagens das suas cartas, os modelos e ligar `CardLibrary` e `CardPrefabs` nos dois componentes. A cena não entra na Scene List sozinha (passo 5.3).
+
 1. **File → New Scene → Basic (URP)** e salve como `Assets/_Project/Scenes/Fase0.unity`.
 2. Apague a **Main Camera**.
 3. **GameObject → XR → AR Session**.

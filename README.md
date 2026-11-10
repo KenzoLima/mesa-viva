@@ -5,7 +5,7 @@ App de celular que reconhece as cartas de Magic: The Gathering sobre a mesa e fa
 - 👉 **Primeiro dia (instalar, clonar, abrir no Unity):** [`docs/COMECE_AQUI.md`](docs/COMECE_AQUI.md)
 - **iPhone (build na nuvem e instalação, sem Mac):** [`docs/IPHONE_GUIA.md`](docs/IPHONE_GUIA.md)
 - **Plano completo** (arquitetura, UX, visão computacional, riscos, roadmap): [`docs/PLANO.md`](docs/PLANO.md)
-- **Passo a passo da Fase 0** (Unity + ARCore + primeiras criaturas): [`docs/FASE0_GUIA.md`](docs/FASE0_GUIA.md)
+- **Passo a passo da Fase 0** (Unity + ARKit + primeiras criaturas): [`docs/FASE0_GUIA.md`](docs/FASE0_GUIA.md)
 - **Reconhecimento da mesa** (calibração por toque, montagem da cena, testes): [`docs/MESA_GUIA.md`](docs/MESA_GUIA.md)
 - **Protótipo clicável da interface** (fantasia sombria): publicado como Artifact (link na conversa)
 - **Licenças dos assets:** [`docs/CREDITS.md`](docs/CREDITS.md)
@@ -21,12 +21,14 @@ unity-app/   projeto Unity (abra esta pasta no Unity Hub) — Assets/_Project:
                Scripts/UI       roteador e telas do menu (UI Toolkit)
                Scripts/Table    calibração da mesa, status do rastreamento
                Scripts/Phase0   Image Tracking + criaturas (Fase 0)
-               Editor/          menu Mesa Viva → Configurar projeto (URP, iOS, ARKit, Player)
+               Editor/          menu Mesa Viva → Configurar projeto (URP, iOS/Android, ARKit/ARCore, Player)
+                                menu Mesa Viva → Criar cenas (App, Mesa, Fase0 + materiais, prefabs, painéis)
                Settings/        URP e URP_Renderer (com AR Background Renderer Feature)
                Resources/       telas (UXML) e model_map.json
                UI/              estilos (Theme.uss, Menus.uss), AppShell e tela de calibração
                Shaders/         grade dourada dos planos
-               Tests/EditMode   testes NUnit (Test Runner)
+               Tests/EditMode   testes NUnit de dados e geometria (Test Runner)
+               Tests/PlayMode   teste do fluxo menu → calibração → menu, com as cenas de verdade
              Assets/StreamingAssets/Catalog   catálogo de cartas do app (TSV)
 ```
 
@@ -81,11 +83,13 @@ O app Unity lê o mesmo arquivo (cópia em `unity-app/Assets/_Project/Resources/
 
 | Fase | Situação |
 |---|---|
-| 0 — Image Tracking + 5 criaturas | Scripts e guia prontos (iPhone); falta montar a cena e testar |
-| 1 — Dados, decks, bestiário | Python e C# prontos e testados; telas do menu em UI Toolkit (importar, detalhe, bestiário, config., nova partida) |
-| Interface | Protótipo aprovado; menus e calibração no Unity; HUD da partida na próxima etapa |
-| Reconhecimento da mesa | Scripts + testes prontos; falta montar a cena e testar no iPhone |
-| 2+ | Ver o roadmap no `docs/PLANO.md` |
+| A — Projeto executável | Correções da auditoria, ARCore/Android, Input System e gerador de cenas escritos; o C# compila. **Falta rodar no Unity** (Configurar projeto, Criar cenas, testes) e testar no aparelho |
+| 0 — Image Tracking + 5 criaturas | Scripts e guia prontos; a cena `Fase0` sai do gerador sem imagens nem modelos (você liga os seus). Nunca testada no aparelho |
+| 1 — Dados, decks, bestiário | Python testado (86 testes). C# de dados com testes EditMode. Telas do menu em UI Toolkit (importar, detalhe, config., nova partida). **Incompleta:** o Bestiário só mostra um ícone (sem modelos 3D), e não há `CreatureImporter` nem modelos no projeto |
+| Interface | Menus e tela de calibração em código; HUD da partida não existe. O modo "Dois celulares" aparece desabilitado ("em breve") |
+| Reconhecimento da mesa | Scripts + testes de geometria prontos; a cena `Mesa` sai do gerador. Nunca testada no aparelho |
+| Reconhecimento de cartas, rastreamento, multiplayer | **Não existem.** Nenhum código ainda |
+| Próximas fases | Ver o roadmap no `docs/PLANO.md` (em revisão: partida entre dois celulares por Wi-Fi local, sem marcadores, reconhecimento automático) |
 
 ---
 

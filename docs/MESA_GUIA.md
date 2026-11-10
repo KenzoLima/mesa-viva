@@ -24,6 +24,8 @@ O fluxo e o visual são os do protótipo (quadro "Calibração e partida"). As c
 
 ---
 
+> **Os passos 2 a 5 são feitos pelo menu Mesa Viva → Criar cenas** (ver `COMECE_AQUI.md` §7). O material das linhas usa o shader do projeto **MtgAr/VertexColor** em vez do *Particles/Unlit* descrito no §4.1. O texto abaixo fica como referência para ajustar a cena à mão.
+
 ## 1. Preparar o projeto
 
 1. **Window → TextMeshPro → Import TMP Essential Resources** (para os rótulos VOCÊ/OPONENTE).
@@ -134,4 +136,4 @@ Gere o app pela nuvem, como no `IPHONE_GUIA.md`, com `App` e `Mesa` na Scene Lis
 
 A matemática da mesa (eixos, lados, ângulo de carta virada, raio da câmera até a mesa) e as regras da calibração têm 28 testes automáticos. Eles foram executados fora do Unity com uma réplica das funções matemáticas do Unity e passaram.
 
-O teste de verdade é rodá-los no **Test Runner** do seu Unity e fazer o checklist no celular.
+O teste de verdade é rodá-los no **Test Runner** do seu Unity e fazer o checklist no celular. Até a data desta revisão (nov/2026), **nenhum dos dois foi feito**: o checklist acima depende de um aparelho físico (iPhone ou Android com ARCore).

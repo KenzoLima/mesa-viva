@@ -130,7 +130,16 @@ namespace MtgAr.Data
             if (key.Length == 0)
                 return new List<string>();
 
+            // A distância de Levenshtein nunca é menor que a diferença de tamanho: nomes que só pelo
+            // tamanho já não alcançam o limite saem antes da conta cara (o resultado é o mesmo).
+            bool CanReach(string other)
+            {
+                var longest = Math.Max(key.Length, other.Length);
+                return 1f - (float)Math.Abs(key.Length - other.Length) / longest >= minSimilarity;
+            }
+
             return byName
+                .Where(pair => CanReach(pair.Key))
                 .Select(pair => (pair, score: Similarity(key, pair.Key)))
                 .Where(x => x.score >= minSimilarity)
                 .OrderByDescending(x => x.score)

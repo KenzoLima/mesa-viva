@@ -17,7 +17,7 @@ namespace MtgAr.EditorTools
 {
     /// <summary>
     /// Faz os passos 5 e 6 do COMECE_AQUI: URP com fundo de câmera do AR, plataforma iOS,
-    /// ARKit / XR Simulation e os ajustes do Player do IPHONE_GUIA §4.
+    /// ARKit / ARCore / XR Simulation e os ajustes do Player (iOS: IPHONE_GUIA §4; Android: IL2CPP + ARM64).
     /// Pode rodar quantas vezes quiser: o que já está certo fica como está.
     /// Pelo menu <b>Mesa Viva → Configurar projeto</b> ou em batchmode:
     /// <c>-buildTarget iOS -executeMethod MtgAr.EditorTools.ProjectSetup.RunBatch</c>.
@@ -30,6 +30,7 @@ namespace MtgAr.EditorTools
         const string XrSettingsPath = "Assets/XR/XRGeneralSettingsPerBuildTarget.asset";
 
         const string ArKitLoader = "UnityEngine.XR.ARKit.ARKitLoader";
+        const string ArCoreLoader = "UnityEngine.XR.ARCore.ARCoreLoader";
         const string SimulationLoader = "UnityEngine.XR.Simulation.SimulationLoader";
 
         const string CameraUsage =
@@ -156,6 +157,7 @@ namespace MtgAr.EditorTools
             }
 
             EnableLoader(perTarget, BuildTargetGroup.iOS, ArKitLoader, "iOS → Apple ARKit", report);
+            EnableLoader(perTarget, BuildTargetGroup.Android, ArCoreLoader, "Android → Google ARCore", report);
             EnableLoader(perTarget, BuildTargetGroup.Standalone, SimulationLoader, "PC → XR Simulation", report);
 
             var arkit = ARKitSettings.GetOrCreateSettings();
@@ -165,6 +167,31 @@ namespace MtgAr.EditorTools
                 EditorUtility.SetDirty(arkit);
                 report.Add("ARKit Requirement = Required");
             }
+
+            RequireArCore(report);
+        }
+
+        /// <summary>
+        /// ARCore Requirement = Required (a loja só oferece o app a aparelhos com ARCore).
+        /// Por reflexão, para este script continuar compilando se o pacote do ARCore sair do projeto.
+        /// </summary>
+        static void RequireArCore(List<string> report)
+        {
+            var type = System.Type.GetType("UnityEditor.XR.ARCore.ARCoreSettings, Unity.XR.ARCore.Editor");
+            var getSettings = type?.GetMethod("GetOrCreateSettings", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            var requirement = type?.GetProperty("requirement");
+            if (getSettings == null || requirement == null)
+            {
+                report.Add("ARCore: ARCoreSettings não encontrado (pacote com.unity.xr.arcore ausente?)");
+                return;
+            }
+
+            var settings = (Object)getSettings.Invoke(null, null);
+            var required = System.Enum.Parse(requirement.PropertyType, "Required");
+            if (requirement.GetValue(settings).Equals(required)) return;
+            requirement.SetValue(settings, required);
+            EditorUtility.SetDirty(settings);
+            report.Add("ARCore Requirement = Required");
         }
 
         static void EnableLoader(XRGeneralSettingsPerBuildTarget perTarget, BuildTargetGroup group,
@@ -198,7 +225,45 @@ namespace MtgAr.EditorTools
             PlayerSettings.iOS.cameraUsageDescription = CameraUsage;
             PlayerSettings.iOS.appleEnableAutomaticSigning = false;
             PlayerSettings.SetArchitecture(NamedBuildTarget.iOS, 1); // 1 = ARM64
-            report.Add("Player: nome, versão, câmera, ARM64, assinatura manual");
+            report.Add("Player (iOS): nome, versão, câmera, ARM64, assinatura manual");
+
+            // Android: o ARCore só roda em IL2CPP + ARM64. O pedido de câmera vem do manifest do plugin.
+            // O Package Name (applicationIdentifier) fica com você, como o Bundle Identifier do iOS.
+            if (PlayerSettings.GetScriptingBackend(NamedBuildTarget.Android) != ScriptingImplementation.IL2CPP)
+            {
+                PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
+                report.Add("Player (Android): Scripting Backend = IL2CPP");
+            }
+            if (PlayerSettings.Android.targetArchitectures != AndroidArchitecture.ARM64)
+            {
+                PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
+                report.Add("Player (Android): Target Architectures = ARM64");
+            }
+
+            ConfigureInputHandling(report);
+        }
+
+        /// <summary>
+        /// Active Input Handling = Input System Package (New). O Tracked Pose Driver que move a câmera
+        /// do XR Origin é do Input System: com o Input Manager antigo, a câmera do AR não sai do lugar.
+        /// "Both" não é suportado no Android. Só vale depois de reiniciar o Editor.
+        /// </summary>
+        static void ConfigureInputHandling(List<string> report)
+        {
+            const int inputSystemOnly = 1;
+            var settings = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/ProjectSettings.asset").FirstOrDefault();
+            if (settings == null)
+            {
+                report.Add("FALHOU: não abri ProjectSettings.asset para ajustar o Active Input Handling");
+                return;
+            }
+
+            var so = new SerializedObject(settings);
+            var handler = so.FindProperty("activeInputHandler");
+            if (handler == null || handler.intValue == inputSystemOnly) return;
+            handler.intValue = inputSystemOnly;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            report.Add("Player: Active Input Handling = Input System (reinicie o Editor)");
         }
 
         // ---------- Project Validation → "Fix All" ----------
@@ -214,7 +279,7 @@ namespace MtgAr.EditorTools
                 return;
             }
 
-            foreach (var group in new[] { BuildTargetGroup.iOS, BuildTargetGroup.Standalone })
+            foreach (var group in new[] { BuildTargetGroup.iOS, BuildTargetGroup.Android, BuildTargetGroup.Standalone })
             {
                 var issues = new HashSet<BuildValidationRule>();
                 for (var pass = 0; pass < 3; pass++)

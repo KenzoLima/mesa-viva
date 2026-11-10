@@ -10,6 +10,7 @@
     "com.unity.test-framework": "1.6.0",
     "com.unity.timeline": "1.8.13",
     "com.unity.ugui": "2.0.0",
+    "com.unity.xr.arcore": "6.3.5",
     "com.unity.xr.arfoundation": "6.3.5",
     "com.unity.xr.arkit": "6.3.5",
     "com.unity.xr.legacyinputhelpers": "2.1.13",

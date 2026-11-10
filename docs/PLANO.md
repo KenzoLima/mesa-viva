@@ -1,12 +1,15 @@
 # Magic em RA no estilo Guerra de Cartas — Plano detalhado
 
+> **Estado real (nov/2026):** este documento é o plano de design. Quase tudo que ele descreve **ainda não foi implementado**: não há visão computacional, rastreamento de cartas, HUD, combate nem multiplayer. O que existe está na tabela de status do `README.md`.
+> **Requisitos novos, ainda não incorporados aqui:** partida entre dois celulares (Android e iOS) por Wi-Fi local e sem internet, alinhamento espacial sem marcadores impressos, reconhecimento totalmente automático (override manual só no menu de depuração) e modelos gratuitos + gerados por IA. As seções 2, 3, 4, 6, 8, 9, 12, 13 e 14 serão revisadas quando o plano revisado for aprovado.
+
 ## 0. Contexto
 
 O objetivo é um app de celular que, apontado para uma mesa de Magic: The Gathering, reconheça as cartas jogadas e faça surgir modelos 3D animados sobre elas, como no episódio "Guerra de Cartas" de Hora de Aventura. Os terrenos viram o cenário, as criaturas surgem, atacam quando são viradas e somem quando saem da mesa.
 
 Nesta primeira fase, **todos os modelos 3D são assets gratuitos da internet, só para teste**. O sistema precisa ser feito de modo que trocá-los depois seja trivial.
 
-O diretório de trabalho está vazio (projeto do zero). Este documento é o **plano de design e execução**: arquitetura, UX, visão computacional, rastreamento, problemas previstos e soluções, e um roadmap por fases com critérios de aceite.
+Este documento é o **plano de design e execução**: arquitetura, UX, visão computacional, rastreamento, problemas previstos e soluções, e um roadmap por fases com critérios de aceite.
 
 ### Premissas (ajustáveis)
 - Desenvolvedor solo ou dupla, ritmo de hobby, uso pessoal e não comercial (Fan Content Policy da Wizards).
@@ -513,7 +516,7 @@ mtg-ar/
 ## 13. Roadmap por fases (entregáveis e critérios de aceite)
 
 ### Fase 0 — "Uau" rápido (1–2 semanas)
-- Instalar Unity 6 LTS, URP, AR Foundation e ARCore, e gerar o build de um app vazio no celular Android (modo desenvolvedor + USB).
+- Instalar Unity 6 LTS, URP, AR Foundation e ARKit, e gerar o build de um app vazio no iPhone pela nuvem (`IPHONE_GUIA.md`). No Android: ARCore, com o celular em modo desenvolvedor + USB.
 - Cena com `ARTrackedImageManager` e uma **biblioteca de 5 cartas diferentes** (sem cópias).
 - Ao detectar uma carta, instanciar um monstro do **Quaternius** com Idle e Spawn.
 - **Aceite:** 5 cartas na mesa → 5 criaturas animadas por cima, com o celular na mão.
@@ -551,7 +554,7 @@ mtg-ar/
 ### Fase 5 — Robustez (contínuo)
 - Embedding **treinado** (metric learning), modo global ("oponente desconhecido"), OCR como desempate, "Escanear deck", tokens e DFC.
 - Taxa adaptativa e gestão térmica, oclusão por profundidade, modo economia.
-- iOS (precisa de Mac + Xcode; conta Apple Developer para distribuição).
+- Publicação nas lojas (o build de iOS já sai pela nuvem, sem Mac: `IPHONE_GUIA.md`).
 - **Aceite:** modo global com ≥90% de top-1; 45 min de partida sem throttling grave.
 
 ### Fase 6 — Futuro

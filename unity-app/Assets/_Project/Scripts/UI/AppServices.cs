@@ -35,6 +35,8 @@ namespace MtgAr.UI
         {
             if (IsReady)
                 yield break;
+            // Uma falha anterior não pode ficar na tela depois de uma nova tentativa.
+            LoadError = null;
 
             var modelMap = Resources.Load<TextAsset>("Config/model_map");
             if (modelMap == null)
@@ -95,7 +97,14 @@ namespace MtgAr.UI
             {
                 // Arquivo corrompido: guarda uma cópia para não perder os decks e começa vazio.
                 Debug.LogWarning($"[AppServices] decks.json ilegível ({e.Message}); salvando cópia em decks.bak");
-                File.Copy(DecksPath, DecksPath + ".bak", true);
+                try
+                {
+                    File.Copy(DecksPath, DecksPath + ".bak", true);
+                }
+                catch (Exception copyError)
+                {
+                    Debug.LogWarning($"[AppServices] não consegui salvar decks.bak ({copyError.Message})");
+                }
             }
             return new DeckLibrary();
         }
@@ -105,9 +114,23 @@ namespace MtgAr.UI
             // Escreve num temporário e troca: um app fechado no meio da gravação não corrompe o arquivo.
             var temp = DecksPath + ".tmp";
             File.WriteAllText(temp, JsonUtility.ToJson(Decks.Library, true));
-            if (File.Exists(DecksPath))
+            if (!File.Exists(DecksPath))
+            {
+                File.Move(temp, DecksPath);
+                return;
+            }
+
+            try
+            {
+                // Troca atômica: em nenhum momento o decks.json deixa de existir.
+                File.Replace(temp, DecksPath, null);
+            }
+            catch (Exception e) when (e is PlatformNotSupportedException || e is IOException)
+            {
+                // Sistemas de arquivo sem troca atômica: apaga e move (o .tmp continua lá se o app fechar no meio).
                 File.Delete(DecksPath);
-            File.Move(temp, DecksPath);
+                File.Move(temp, DecksPath);
+            }
         }
 
         /// <summary>Quantas cartas de cada deck usam cada modelo de criatura (para o Bestiário).</summary>

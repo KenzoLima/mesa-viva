@@ -1,0 +1,3 @@
+/* Tema base do UI Toolkit em runtime. Sem um tema, o PanelSettings não desenha texto nem controles.
+   As cores e fontes do Mesa Viva ficam em Theme.uss e Menus.uss. */
+@import url("unity-theme://default");

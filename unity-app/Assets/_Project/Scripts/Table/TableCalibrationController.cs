@@ -65,6 +65,7 @@ namespace MtgAr.Table
 
         ARPlane tablePlane;
         DragMode dragMode;
+        bool planesVisible = true;
 
         void Awake()
         {
@@ -79,6 +80,21 @@ namespace MtgAr.Table
         void OnEnable()
         {
             planeManager.requestedDetectionMode = PlaneDetectionMode.Horizontal;
+            planeManager.trackablesChanged.AddListener(OnPlanesChanged);
+        }
+
+        void OnDisable()
+        {
+            planeManager.trackablesChanged.RemoveListener(OnPlanesChanged);
+        }
+
+        /// <summary>Planos que aparecem com a grade escondida (durante o ajuste) nascem escondidos também.</summary>
+        void OnPlanesChanged(ARTrackablesChangedEventArgs<ARPlane> args)
+        {
+            if (planesVisible)
+                return;
+            foreach (var plane in args.added)
+                plane.gameObject.SetActive(false);
         }
 
         void Update()
@@ -288,6 +304,7 @@ namespace MtgAr.Table
 
         void ShowPlanes(bool visible)
         {
+            planesVisible = visible;
             foreach (var plane in planeManager.trackables)
                 plane.gameObject.SetActive(visible);
         }

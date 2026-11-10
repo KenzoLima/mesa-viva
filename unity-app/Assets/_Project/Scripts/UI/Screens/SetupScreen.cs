@@ -14,8 +14,11 @@ namespace MtgAr.UI
         {
             (DeviceMode.Stand, "No suporte (recomendado)", "Celular fixo na lateral da mesa, mãos livres. Dá para espelhar na TV."),
             (DeviceMode.Handheld, "Na mão", "Aponte quando quiser ver. As criaturas fora da vista ficam paradas."),
-            (DeviceMode.TwoPhones, "Dois celulares", "Cada jogador usa o seu, cada um do seu ângulo."),
+            (DeviceMode.TwoPhones, "Dois celulares (em breve)", "Partida sincronizada por Wi-Fi local. Ainda não está pronta."),
         };
+
+        /// <summary>Modos que aparecem na lista mas ainda não podem ser escolhidos.</summary>
+        static bool IsAvailable(DeviceMode mode) => mode != DeviceMode.TwoPhones;
 
         readonly MatchConfig config = new MatchConfig();
         VisualElement myDecks, oppDecks, modes, lives;
@@ -72,6 +75,7 @@ namespace MtgAr.UI
                 var row = UiKit.Row(label, hint, () => { config.Mode = mode; Refresh(); }, chevron: false);
                 row.EnableInClassList("mv-row--selected", config.Mode == mode);
                 row.style.marginBottom = 10;
+                row.SetEnabled(IsAvailable(mode));
                 modes.Add(row);
             }
 

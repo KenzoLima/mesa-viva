@@ -21,7 +21,9 @@ Tempo estimado: de 2 a 3 horas, a maior parte esperando instalações.
 | **Visual Studio Community** | Ler e editar o C# | O Hub oferece junto na instalação do Unity. Deixe marcado. |
 | Python 3.12 (opcional por enquanto) | Ferramentas de dados das cartas (§10) | https://www.python.org/downloads (marque "Add python.exe to PATH") |
 
-Na instalação do Unity 6, marque o módulo **iOS Build Support**. Não precisa do Android.
+Na instalação do Unity 6, marque o módulo **iOS Build Support**. Para gerar o app de Android, marque também **Android Build Support** (com *OpenJDK* e *Android SDK & NDK Tools*); dá para adicionar depois em **Unity Hub → Installs → ⚙ → Add modules**. O projeto abre e roda no Editor sem ele.
+
+O Unity precisa de uma **licença ativa** (a Personal é gratuita): **Unity Hub → entre na sua conta → Preferences → Licenses → Add**. Sem ela o Editor não abre, nem pela linha de comando.
 
 ## 2. Criar o repositório no GitHub
 
@@ -47,10 +49,13 @@ Na instalação do Unity 6, marque o módulo **iOS Build Support**. Não precisa
 > Sem abrir o Unity, dá para rodar o mesmo script pela linha de comando:
 > `Unity.exe -batchmode -nographics -buildTarget iOS -projectPath unity-app -executeMethod MtgAr.EditorTools.ProjectSetup.RunBatch -logFile -`
 > Os passos abaixo ficam como referência do que o script faz.
+>
+> O mesmo menu também configura o **Android**: liga o **Google ARCore** em XR Plug-in Management, *Scripting Backend* = IL2CPP e *Target Architectures* = ARM64. O *Package Name* do Android fica com você.
+> E põe **Active Input Handling = Input System Package (New)**: a câmera do XR Origin é movida por um *Tracked Pose Driver* do Input System, e com o Input Manager antigo ela não sai do lugar. Essa troca só vale depois de **fechar e abrir o Unity**.
 
 1. Unity Hub → **Projects → Add → Add project from disk** → selecione `MesaViva\unity-app`.
 2. Abra com o **Unity 6000.3.27f1**. A primeira abertura demora de 5 a 15 min, porque o Unity cria a pasta `Library/`, que nunca vai para o Git.
-3. Os pacotes já estão no `Packages/manifest.json`: AR Foundation e Apple ARKit 6.3.5, Universal RP 17.3.0 e Test Framework 1.6.0.
+3. Os pacotes já estão no `Packages/manifest.json`: AR Foundation, Apple ARKit e Google ARCore 6.3.5, Universal RP 17.3.0 e Test Framework 1.6.0.
 
 ## 5. Configurar o visual (URP) e a câmera do AR
 
@@ -70,6 +75,11 @@ Na instalação do Unity 6, marque o módulo **iOS Build Support**. Não precisa
 4. Os ajustes do **Player** estão no `IPHONE_GUIA.md` §4. O script já preenche nome, versão, texto do pedido de câmera, ARM64 e assinatura manual. **Company Name e Bundle Identifier ficam com você**, porque dependem da sua conta Apple.
 
 ## 7. Montar as duas cenas
+
+> ✅ **Este passo é feito pelo menu Mesa Viva → Criar cenas** (`Assets/_Project/Editor/SceneBuilder.cs`). Ele cria `App`, `Mesa` e o esqueleto da `Fase0` em `Assets/_Project/Scenes/`, os *Panel Settings*, os materiais, os prefabs do plano e da alça, e põe `App` e `Mesa` na Scene List.
+> Rode **Mesa Viva → Configurar projeto** antes, reinicie o Unity, e importe **Window → TextMeshPro → Import TMP Essential Resources** (sem isso as cenas saem sem os rótulos VOCÊ/OPONENTE).
+> O menu **recria** `App` e `Mesa` do zero toda vez; a `Fase0` só é criada se não existir.
+> Os passos abaixo e o `MESA_GUIA.md` §2 a §5 ficam como referência do que o script monta.
 
 ### Cena `App` (os menus)
 1. **File → New Scene → Basic (URP)** e salve como `Assets/_Project/Scenes/App.unity`.
@@ -109,7 +119,7 @@ Siga o `MESA_GUIA.md` §2 a §5.
    A última carta tem um erro de digitação de propósito: o botão **Corrigir** deve aparecer.
    > O catálogo que vem no projeto é só de **exemplo** (umas 20 cartas). O catálogo completo está no §10.
 4. Salve o deck, toque em **Trocar** numa criatura e escolha outro modelo. Depois vá em **Jogar → Calibrar a mesa**: a cena `Mesa` abre (no Editor, com XR Simulation).
-5. Rode os testes: **Window → General → Test Runner → EditMode → Run All**. Todos devem passar.
+5. Rode os testes: **Window → General → Test Runner**. Em **EditMode → Run All** estão os testes de dados e de geometria. Em **PlayMode → Run All** está o teste que abre a cena `App`, clica em Jogar → Calibrar a mesa, confere a cena `Mesa` e volta ao menu. Todos devem passar.
 
 ## 9. Enviar a configuração para o GitHub
 
