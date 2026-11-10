@@ -83,6 +83,7 @@ O app Unity lê o mesmo arquivo (cópia em `Assets/_Project/Resources/Config/`; 
 
 | Fase | Situação |
 |---|---|
+| M0 — Chão firme (roadmap da `docs/ARQUITETURA.md` §8) | Migração feita, Unity Transport instalado, testes verdes no Unity 6000.6.8f1 (57 EditMode, 1 PlayMode) e no Python (86). **Falta:** build de Android (módulo não instalado), build no iPhone e o aceite da calibração no aparelho. Detalhes na `ARQUITETURA.md` §11 |
 | A — Projeto executável | Correções da auditoria, ARCore/Android, Input System e gerador de cenas escritos; o C# compila. **Falta rodar no Unity** (Configurar projeto, Criar cenas, testes) e testar no aparelho |
 | 0 — Image Tracking + 5 criaturas | Scripts e guia prontos; a cena `Fase0` sai do gerador sem imagens nem modelos (você liga os seus). Nunca testada no aparelho |
 | 1 — Dados, decks, bestiário | Python testado (86 testes). C# de dados com testes EditMode. Telas do menu em UI Toolkit (importar, detalhe, config., nova partida). **Incompleta:** o Bestiário só mostra um ícone (sem modelos 3D), e não há `CreatureImporter` nem modelos no projeto |

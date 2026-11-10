@@ -11,6 +11,7 @@
     "com.unity.services.authentication": "3.8.1",
     "com.unity.services.cloudsave": "3.4.2",
     "com.unity.test-framework": "1.8.0",
+    "com.unity.transport": "6.6.0",
     "com.unity.ugui": "2.6.0",
     "com.unity.xr.arcore": "6.7.1",
     "com.unity.xr.arfoundation": "6.7.1",

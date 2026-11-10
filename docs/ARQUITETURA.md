@@ -325,4 +325,19 @@ M1 e M2 não dependem um do outro e podem se alternar.
 ## 10. Pendências
 
 - Confirmar se há um **segundo iPhone** disponível para o S1 e para os testes de sala do M1.
-- Confirmar a licença AGPL-3.0 para o repositório.
+- Confirmar a licença AGPL-3.0 para o repositório (em 10/11/2026 a decisão foi adiada; não há arquivo `LICENSE`).
+
+## 11. Situação do M0 (10/11/2026)
+
+**O M0 não está concluído.** O que roda no PC está feito e verificado; o critério de aceite depende de aparelho.
+
+| Item do M0 | Situação | Evidência |
+|---|---|---|
+| Código, testes, `ml/`, `docs/`, `tools/` migrados | Feito | commit `9db83cd`; `python tools/new_meta.py --check` sem faltas |
+| Pacotes que faltavam | Feito | ARCore 6.7.1 e Test Framework 1.8.0 já estavam; **Unity Transport 6.6.0** adicionado em 10/11; 0 erros de compilação |
+| Testes verdes | Feito | Unity 6000.6.8f1: 57/57 EditMode e 1/1 PlayMode, rodados depois da troca de pacotes; Python: 86/86 |
+| Build de Android compilando | **Pendente** | O Editor 6000.6.8f1 só tem o módulo iOS; falta instalar o Android Build Support |
+| Build instalada no iPhone | **Pendente** | Depende do build na nuvem e do aparelho (`IPHONE_GUIA.md`); o Bundle Identifier ainda é o do template |
+| Aceite: calibração da mesa funciona no iPhone | **Pendente** | Nunca testada em aparelho |
+
+Inference Engine, Addressables e glTFast ficam para as fases que os usam (M2/M3 e M5).
