@@ -23,7 +23,8 @@ test('normalização igual à do Python', () => {
 test('catálogo acha por nome, face e português', () => {
   assert.ok(catalog.size > 10);
   assert.equal(catalog.lookup('delver of secrets')[0].name, 'Delver of Secrets // Insectile Aberration');
-  assert.equal(catalog.lookup('Aberração Insetoide')[0].name, 'Delver of Secrets // Insectile Aberration');
+  assert.equal(catalog.lookup('Elfos de Llanowar')[0].name, 'Llanowar Elves');
+  assert.equal(catalog.lookup('Lightning Bolt')[0].typeLine, 'Instant'); // nome oficial antes de faces de outras cartas
   assert.equal(catalog.lookup('JOTUN GRUNT').length, 1);
 });
 

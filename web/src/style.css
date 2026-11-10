@@ -118,6 +118,16 @@ footer { margin-top: 16px; color: var(--muted); font-size: 0.75rem; }
 .xr-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .xr-controls label { display: flex; gap: 8px; align-items: center; flex: 1 1 100%; }
 .xr-controls input[type="range"] { flex: 1; accent-color: var(--gold); }
+h2 small { font: 400 0.8rem system-ui, sans-serif; color: var(--muted); margin-left: 6px; }
+.xr-card { flex: 1 1 100%; display: grid; gap: 6px; }
+.xr-card input {
+  font: inherit;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
 .xr-controls select {
   flex: 1 1 100%;
   font: inherit;

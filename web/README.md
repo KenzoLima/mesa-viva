@@ -48,14 +48,26 @@ Modelos 3D: coloque `<id>.glb` em `web/public/models/` (veja o `LEIA-ME.md` de l
 
 ## De onde vêm os dados (fonte única)
 
-O web **não tem dados próprios**: usa os mesmos arquivos do Unity e do Python.
+O web usa o mesmo mapa de modelos e o mesmo formato de catálogo do Unity e do Python:
 
 ```
-ml/config/model_map.json             ─┐
-Assets/StreamingAssets/Catalog/*.tsv ─┴─► python tools/sync_web_data.py ─► web/public/data/
+ml/config/model_map.json ──► python tools/sync_web_data.py ──► web/public/data/model_map.json
+ml/data/cards.db         ──► export_app_catalog.py --out web/public/data ──► cards.tsv + names.tsv
 ```
 
-Mudou o mapa ou o catálogo? Rode `npm run sync-data`. O CI confere com `--check`.
+- O web traz o **catálogo completo** do Scryfall: ~35 mil cartas, com ~25 mil nomes em português (~2 MB comprimido).
+- O Unity continua com a **amostra** (24 cartas) em `Assets/StreamingAssets/Catalog`, porque os testes EditMode dependem dela.
+
+Para atualizar o catálogo (cartas novas):
+
+```bash
+cd ml
+python scripts/download_scryfall.py --out data/scryfall --with-all-cards
+python scripts/build_card_db.py --oracle data/scryfall/oracle_cards.json --artwork data/scryfall/unique_artwork.json --all-cards data/scryfall/all_cards.json --langs pt --out data/cards.db
+python scripts/export_app_catalog.py --db data/cards.db --out ../web/public/data
+```
+
+Mudou o `model_map.json`? Rode `npm run sync-data`. O CI confere com `--check`.
 
 ## Mapa do código (e o equivalente no Unity)
 

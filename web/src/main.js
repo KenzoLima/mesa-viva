@@ -19,7 +19,6 @@ const [catalog, resolver] = await Promise.all([
   CardCatalog.load(`${BASE}data/`),
   ModelResolver.load(`${BASE}data/model_map.json`, loadOverrides()),
 ]);
-const cards = [...catalog.byId.values()].sort((a, b) => a.displayName.localeCompare(b.displayName, 'pt'));
 
 // ---------- Bestiário ----------
 function renderResults(list) {
@@ -34,7 +33,9 @@ function renderResults(list) {
   }));
 }
 $('search').addEventListener('input', (e) => renderResults(catalog.search(e.target.value)));
-renderResults(cards.slice(0, 8));
+renderResults(['Shivan Dragon', 'Llanowar Elves', 'Serra Angel', 'Lightning Bolt', 'Breeding Pool', 'Sol Ring']
+  .map((n) => catalog.lookup(n)[0]).filter(Boolean));
+$('catalog-count').textContent = `${catalog.size.toLocaleString('pt-BR')} cartas no catálogo`;
 
 // ---------- Modo Cartas (MindAR, todos os aparelhos) ----------
 const targets = await loadTargets(BASE);
@@ -79,15 +80,21 @@ if (await isTableModeSupported()) {
   $('table-info').textContent = 'Precisa do Chrome no Android com ARCore. No iPhone, use o modo Cartas.';
 }
 
-const select = $('xr-card');
-for (const card of cards) {
-  const opt = document.createElement('option');
-  opt.value = card.oracleId;
-  opt.textContent = `${card.displayName} — ${resolver.label(resolver.resolve(card).modelId)}`;
-  select.append(opt);
+// Com o catálogo inteiro (~30 mil cartas) não dá para listar tudo: busca e mostra as melhores.
+const select = $('xr-card-select');
+function fillCardOptions(list) {
+  select.replaceChildren(...list.map((card) => {
+    const opt = document.createElement('option');
+    opt.value = card.oracleId;
+    opt.textContent = `${card.displayName} — ${resolver.label(resolver.resolve(card).modelId)}`;
+    return opt;
+  }));
 }
-const firstCreature = cards.find((c) => c.hasType('Creature'));
-if (firstCreature) select.value = firstCreature.oracleId;
+const STARTERS = ['Shivan Dragon', 'Llanowar Elves', 'Serra Angel', 'Goblin Guide', 'Grizzly Bears', 'Lightning Bolt', 'Forest'];
+fillCardOptions(STARTERS.map((n) => catalog.lookup(n)[0]).filter(Boolean));
+$('xr-search').addEventListener('input', (e) => {
+  if (e.target.value.trim().length >= 2) fillCardOptions(catalog.search(e.target.value, 30));
+});
 
 $('btn-table').addEventListener('click', async () => {
   const { startTableMode } = await import('./modes/table.js');
@@ -103,7 +110,7 @@ $('btn-table').addEventListener('click', async () => {
         size: $('xr-size'),
         confirm: $('xr-confirm'),
         recalibrate: $('xr-recalibrate'),
-        cardSelect: select,
+        cardSelect: $('xr-card'),
         exit: $('xr-exit'),
       },
       resolver,

@@ -139,13 +139,23 @@ class ScryfallClient:
             if meta.get("updated_at") == info.get("updated_at"):
                 return dest, False
 
-        self.download_file(info["download_uri"], dest, accept="application/json", progress=progress,
-                           expected_size=info.get("size"))
+        uri = info.get("download_uri")
+        if uri:
+            self.download_file(uri, dest, accept="application/json", progress=progress,
+                               expected_size=info.get("size"))
+        else:
+            # Desde 2026 o Scryfall entrega o bulk como JSONL comprimido (jsonl_download_uri).
+            # Convertemos para o array JSON de sempre, para o resto do pipeline não mudar.
+            uri = info["jsonl_download_uri"]
+            gz = out_dir / f"{bulk_type}.jsonl.gz"
+            self.download_file(uri, gz, accept="*/*", progress=progress, expected_size=info.get("compressed_size"))
+            jsonl_gz_to_json_array(gz, dest)
+            gz.unlink()
         meta_path.write_text(json.dumps({
             "type": bulk_type,
             "updated_at": info.get("updated_at"),
-            "size": info.get("size"),
-            "download_uri": info["download_uri"],
+            "size": info.get("size") or info.get("compressed_size"),
+            "download_uri": uri,
         }, indent=2), encoding="utf-8")
         return dest, True
 
@@ -203,6 +213,26 @@ class ScryfallClient:
         if not paths:
             raise ScryfallError(f"a carta '{card.get('name', name)}' não tem imagem na versão '{version}'")
         return paths
+
+
+def jsonl_gz_to_json_array(src: str | Path, dest: str | Path) -> Path:
+    """Converte um .jsonl.gz (um objeto por linha) num array JSON, em streaming (arquivos de GB)."""
+    dest = Path(dest)
+    part = dest.with_name(dest.name + ".part")
+    with gzip.open(src, "rt", encoding="utf-8") as lines, open(part, "w", encoding="utf-8") as out:
+        out.write("[")
+        first = True
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            if not first:
+                out.write(",\n")
+            out.write(line)
+            first = False
+        out.write("]\n")
+    os.replace(part, dest)
+    return dest
 
 
 def _read_body(response: Any) -> bytes:

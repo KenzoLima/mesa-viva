@@ -72,7 +72,17 @@ export class CardCatalog {
 
   /** Cartas com esse nome (inglês ou português, com ou sem acento). */
   lookup(name) {
-    return (this.byName.get(normalizeName(name)) ?? []).map((id) => this.byId.get(id)).filter(Boolean);
+    const key = normalizeName(name);
+    // Com o catálogo inteiro um nome pode bater em várias cartas: o nome oficial vem antes de faces e traduções.
+    const rank = (card) => {
+      if (normalizeName(card.name) === key) return 0;
+      if (card.name.split(' // ').some((f) => normalizeName(f) === key)) return 1;
+      return 2;
+    };
+    return (this.byName.get(key) ?? [])
+      .map((id) => this.byId.get(id))
+      .filter(Boolean)
+      .sort((a, b) => rank(a) - rank(b));
   }
 
   /** Busca por prefixo, para o campo de pesquisa. */

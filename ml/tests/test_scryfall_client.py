@@ -126,3 +126,16 @@ def test_download_card_image_double_faced(tmp_path):
 def test_slugify():
     assert slugify("Jötun Grunt") == "jotun_grunt"
     assert slugify("Fire // Ice") == "fire_ice"
+
+
+def test_jsonl_gz_to_json_array(tmp_path):
+    import gzip
+    import json
+
+    from mtgar_data.scryfall_client import jsonl_gz_to_json_array
+
+    src = tmp_path / "x.jsonl.gz"
+    with gzip.open(src, "wt", encoding="utf-8") as f:
+        f.write('{"name": "A"}\n\n{"name": "B"}\n')
+    out = jsonl_gz_to_json_array(src, tmp_path / "x.json")
+    assert json.loads(out.read_text(encoding="utf-8")) == [{"name": "A"}, {"name": "B"}]
