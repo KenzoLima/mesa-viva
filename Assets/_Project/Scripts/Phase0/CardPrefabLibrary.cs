@@ -17,6 +17,8 @@ namespace MtgAr.Phase0
             [Tooltip("Exatamente o mesmo nome da imagem na Reference Image Library.")]
             public string referenceImageName;
             public GameObject prefab;
+            [Tooltip("Opcional: id do model_map.json (ex.: demon, vampire). Usado quando 'prefab' está vazio.")]
+            public string modelId;
             [Tooltip("Altura da criatura em metros (a carta tem 0,088 m de altura).")]
             public float heightMeters = 0.07f;
             [Tooltip("Giro extra em Y para modelos que vêm de costas ou de lado.")]
@@ -33,8 +35,11 @@ namespace MtgAr.Phase0
         {
             foreach (var candidate in entries)
             {
-                if (candidate.prefab != null &&
-                    string.Equals(candidate.referenceImageName, referenceImageName, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(candidate.referenceImageName, referenceImageName, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (candidate.prefab == null && !string.IsNullOrEmpty(candidate.modelId))
+                    candidate.prefab = MtgAr.Data.CreatureModelCatalog.Get(candidate.modelId);
+                if (candidate.prefab != null)
                 {
                     entry = candidate;
                     return true;
