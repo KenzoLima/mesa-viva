@@ -29,8 +29,8 @@ test('catálogo acha por nome, face e português', () => {
 });
 
 for (const [name, model, reason] of [
-  ['Llanowar Elves', 'elf', 'subtipo Elf'],
-  ['Goblin Guide', 'goblin', 'subtipo Goblin'],
+  ['Llanowar Elves', 'bestiary/elf_warrior', 'subtipo Elf'],
+  ['Goblin Guide', 'bestiary/goblin_warrior', 'subtipo Goblin'],
   ['Delver of Secrets', 'human', 'subtipo Human'],
   ['Jötun Grunt', 'giant', 'subtipo Giant'],
   ['Grizzly Bears', 'beast', 'família beast (Bear)'],

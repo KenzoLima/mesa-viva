@@ -10,8 +10,8 @@ def pick(db, resolver, name):
 @pytest.mark.parametrize(
     "name, model, reason",
     [
-        ("Llanowar Elves", "elf", "subtipo Elf"),          # Elf (raça) vence Druid (classe)
-        ("Goblin Guide", "goblin", "subtipo Goblin"),       # Goblin vence Scout
+        ("Llanowar Elves", "bestiary/elf_warrior", "subtipo Elf"),          # Elf (raça) vence Druid (classe)
+        ("Goblin Guide", "bestiary/goblin_warrior", "subtipo Goblin"),       # Goblin vence Scout
         ("Delver of Secrets", "human", "subtipo Human"),    # Human vence Wizard
         ("Jötun Grunt", "giant", "subtipo Giant"),          # Giant vence Soldier
         ("Grizzly Bears", "beast", "família beast (Bear)"),
