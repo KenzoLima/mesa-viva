@@ -63,12 +63,13 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const ANCHORS = {
   // min/max: onde o centro do texto fica (× altura da carta, a partir do topo).
   // above/extent: região de busca acima e abaixo do texto (× altura estimada). below: folga até a base (× altura do texto).
-  title: { min: 0.015, max: 0.2, above: 0.3, extent: 1.25, below: 3 },
-  type: { min: 0.5, max: 0.95, above: 1.45, extent: 0.65, below: 0.4 },
+  // topLines: quantas retas acima do texto testar (acima da linha de tipo há arte e outras cartas).
+  title: { min: 0.015, max: 0.2, above: 0.3, extent: 1.25, below: 3, topLines: 7 },
+  type: { min: 0.5, max: 0.95, above: 1.45, extent: 0.65, below: 0.4, topLines: 14 },
 };
 
-export function detectCardQuad(frame, title, { anchor = 'title' } = {}) {
-  const pos = ANCHORS[anchor] ?? ANCHORS.title;
+export function detectCardQuad(frame, title, { anchor = 'title', debug } = {}) {
+  const pos = { ...(ANCHORS[anchor] ?? ANCHORS.title), debug };
   const th = Math.max(4, title.y1 - title.y0);
   const tw = Math.max(th, title.x1 - title.x0);
   // Altura da carta: o nome tem ~4-6% dela. Margem larga para os dois lados do erro.
@@ -207,7 +208,7 @@ function detectWith(frame, title, pos, cardH) {
   const yAt = (l, x) => (l.r - x * l.c) / l.s;
   const xAt = (l, y) => (l.r - y * l.s) / l.c;
 
-  const top = horiz.filter((l) => yAt(l, tc.x) < title.y0 + th * 0.3 && yAt(l, tc.x) > tc.y - cardH * above).slice(0, 7);
+  const top = horiz.filter((l) => yAt(l, tc.x) < title.y0 + th * 0.3 && yAt(l, tc.x) > tc.y - cardH * above).slice(0, pos.topLines);
   const bottom = horiz.filter((l) => yAt(l, tc.x) > title.y1 + th * pos.below).slice(0, 9);
   const left = vert.filter((l) => xAt(l, tc.y) < title.x0 + th * 0.5).slice(0, 7);
   const right = vert.filter((l) => xAt(l, tc.y) > tc.x).slice(0, 9);
@@ -236,6 +237,57 @@ function detectWith(frame, title, pos, cardH) {
     return hit / n;
   };
 
+  // ---- fresta de mesa dentro do quad ----
+  // Com outra carta encostada, o quad "mais externo" vai até a borda da vizinha e engole a fresta
+  // entre as duas: uma faixa da cor da mesa ao longo de um lado inteiro. Carta de verdade não tem isso.
+  const px = (x, y) => {
+    const xi = Math.min(frame.w - 1, Math.max(0, Math.round(x)));
+    const yi = Math.min(frame.h - 1, Math.max(0, Math.round(y)));
+    return data[yi * w + xi];
+  };
+  const sideFrame = (q, i, c) => {
+    const a = q[i];
+    const b = q[(i + 1) % 4];
+    const len = dist(a, b);
+    let nx = -(b.y - a.y) / len;
+    let ny = (b.x - a.x) / len;
+    if ((c.x - (a.x + b.x) / 2) * nx + (c.y - (a.y + b.y) / 2) * ny < 0) {
+      nx = -nx;
+      ny = -ny;
+    } // normal para dentro
+    const along = (d) => Array.from({ length: 11 }, (_, k) => {
+      const f = 0.1 + (0.8 * k) / 10;
+      return px(a.x + (b.x - a.x) * f + nx * d, a.y + (b.y - a.y) * f + ny * d);
+    });
+    return { along, len };
+  };
+  const hasTableStrip = (q) => {
+    const c = { x: (q[0].x + q[1].x + q[2].x + q[3].x) / 4, y: (q[0].y + q[1].y + q[2].y + q[3].y) / 4 };
+    const sides = [0, 1, 2, 3].map((i) => sideFrame(q, i, c));
+    // Cor da mesa: o que está logo fora de cada lado, quando é liso (fora de um lado pode ser a vizinha).
+    const tables = sides.map((s) => {
+      const v = s.along(-3).sort((x, y) => x - y);
+      return v[8] - v[2] < 30 ? v[5] : null;
+    });
+    for (let i = 0; i < 4; i++) {
+      const ref = tables.filter((t, j) => j !== i && t !== null);
+      if (!ref.length) continue;
+      // A faixa tem de ser mais larga que a moldura colorida da carta (~2,5% da largura), que em
+      // cinza pode ter o mesmo tom da mesa.
+      const perp = dist(q[(i + 1) % 4], q[(i + 2) % 4]);
+      const need = Math.max(3, perp * 0.032);
+      let run = 0;
+      for (let d = 2; d < perp * 0.3; d++) {
+        const v = sides[i].along(d);
+        const lo = Math.min(...v);
+        const hi = Math.max(...v);
+        run = hi - lo < 30 && ref.some((t) => Math.abs((lo + hi) / 2 - t) < 18) ? run + 1 : 0;
+        if (run >= need) return true;
+      }
+    }
+    return false;
+  };
+
   let best = null;
   const cands = [];
   for (const T of top) {
@@ -254,6 +306,9 @@ function detectWith(frame, title, pos, cardH) {
           // Proporção de carta (1,4) com folga para a perspectiva da carta deitada na mesa.
           const aspect = ch / cw;
           if (aspect < 0.65 || aspect > 1.9) continue;
+          // Tamanho compatível com o texto: a letra tem uns 3-5% da altura da carta. Barra o quad que
+          // engole várias cartas (a caixa do OCR só cresce com rotação, então o limite de cima é folgado).
+          if (ch > (th / 0.025) * 1.15) continue;
           if (Math.max(wTop, wBot) / Math.min(wTop, wBot) > 1.8 || Math.max(hL, hR) / Math.min(hL, hR) > 1.8) continue;
           // O nome fica no topo da carta (a linha de tipo do token, embaixo) e ocupa boa parte da largura.
           const topY = yAt(T, tc.x);
@@ -269,13 +324,13 @@ function detectWith(frame, title, pos, cardH) {
       }
     }
   }
+  if (pos.debug) pos.debug.push(...cands.map((c) => ({ ...c, strip: hasTableStrip(c.q) })));
   if (!cands.length) return null;
   // Entre os bem apoiados, o mais externo (a borda preta da carta, não o quadro da arte).
+  // Com outra carta encostada, o "mais externo" pegaria a borda da vizinha: pula quem tem fresta de mesa.
   const top1 = Math.max(...cands.map((c) => c.score));
-  for (const c of cands) {
-    if (c.score < top1 - 0.12) continue;
-    if (!best || c.area > best.area) best = c;
-  }
+  const pool = cands.filter((c) => c.score >= top1 - 0.12).sort((a, b) => b.area - a.area);
+  best = pool.find((c) => !hasTableStrip(c.q)) ?? pool[0];
   return refineSides(best.q, edges, rx0, ry0) ?? best.q;
 }
 
