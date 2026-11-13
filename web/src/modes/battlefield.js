@@ -80,6 +80,27 @@ function cardPose(q) {
   return new THREE.Quaternion().setFromRotationMatrix(BASIS.makeBasis(AX, AY, AZ));
 }
 
+const UP = new THREE.Vector3();
+const FWD = new THREE.Vector3();
+const SIDE = new THREE.Vector3();
+
+/**
+ * Pose da criatura: em pé, com a cabeça sempre para o alto da tela (o celular fica em pé e a mesa
+ * embaixo), inclinada só o quanto a carta está inclinada, e girando junto com a carta no plano da mesa.
+ * Usar a normal da carta crua deitava a criatura de lado sempre que o contorno saía um pouco torto.
+ */
+function creaturePose(q) {
+  cardPose(q); // preenche AY (normal) e AZ (topo da carta)
+  // nz = 1: câmera olhando a carta de cima; 0: de lado. Limitado para a criatura nunca sumir de perfil.
+  const nz = THREE.MathUtils.clamp(Math.abs(AY.z), 0.35, 0.9);
+  UP.set(0, Math.sqrt(1 - nz * nz), nz);
+  FWD.copy(AZ).addScaledVector(UP, -AZ.dot(UP));
+  if (FWD.lengthSq() < 1e-6) FWD.set(0, -nz, Math.sqrt(1 - nz * nz));
+  FWD.normalize();
+  SIDE.crossVectors(UP, FWD).normalize();
+  return new THREE.Quaternion().setFromRotationMatrix(BASIS.makeBasis(SIDE, UP, FWD));
+}
+
 export async function startBattlefield(view, { catalog, resolver, onStatus }) {
   const video = document.createElement('video');
   // iPhone: sem playsinline o vídeo abre no player nativo, e sem muted/autoplay ele não toca.
@@ -156,7 +177,7 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
     const feet = onCard(q, 0.5, FEET_AT);
     // Largura da carta na altura dos pés (na perspectiva, a parte de trás aparece menor).
     const width = Math.hypot(onCard(q, 1, FEET_AT).x - onCard(q, 0, FEET_AT).x, onCard(q, 1, FEET_AT).y - onCard(q, 0, FEET_AT).y);
-    return { x: feet.x, y: feet.y, size: width * CREATURE_SIZE, bottom: onCard(q, 0.5, 1), quad: q, rot: cardPose(q) };
+    return { x: feet.x, y: feet.y, size: width * CREATURE_SIZE, bottom: onCard(q, 0.5, 1), quad: q, rot: creaturePose(q) };
   };
   const sampler = new GraySampler();
 

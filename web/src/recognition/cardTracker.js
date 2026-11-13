@@ -431,6 +431,33 @@ export function detectFeatures(frame, quad, max = 60, minDist = 6) {
   return out;
 }
 
+/**
+ * O quad ainda tem cara de carta? (convexo, lados opostos parecidos, proporção e ângulos de carta,
+ * com folga para a perspectiva da carta deitada). Barra o contorno que "escorre" para a mesa ou para
+ * a carta vizinha quando o rastreador ou o reencaixe nas bordas erram.
+ */
+export function cardShapeOk(q) {
+  if (!q || q.length !== 4 || q.some((p) => !Number.isFinite(p.x) || !Number.isFinite(p.y))) return false;
+  if (!isConvex(q)) return false;
+  const d = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
+  const wT = d(q[0], q[1]);
+  const wB = d(q[3], q[2]);
+  const hL = d(q[0], q[3]);
+  const hR = d(q[1], q[2]);
+  if (Math.min(wT, wB, hL, hR) < 2) return false;
+  if (Math.max(wT, wB) / Math.min(wT, wB) > 1.45 || Math.max(hL, hR) / Math.min(hL, hR) > 1.4) return false;
+  const aspect = (hL + hR) / (wT + wB);
+  if (aspect < 0.6 || aspect > 2.1) return false;
+  for (let i = 0; i < 4; i++) {
+    const a = q[(i + 3) % 4];
+    const b = q[i];
+    const c = q[(i + 1) % 4];
+    const cos = ((a.x - b.x) * (c.x - b.x) + (a.y - b.y) * (c.y - b.y)) / (d(a, b) * d(c, b));
+    if (Math.abs(cos) > 0.62) return false; // ângulo fora de ~52°-128°
+  }
+  return true;
+}
+
 // ---------- rastreador ----------
 
 export class CardTracker {
@@ -451,12 +478,15 @@ export class CardTracker {
         { x: rect.x * s, y: (rect.y + rect.h) * s },
       ];
       // A estimativa pelo nome pode errar bastante: primeiro uma busca larga, depois uma fina.
-      quad = refineQuad(frame, quad, 0.18);
-      quad = refineQuad(frame, quad, 0.06);
+      const wide = refineQuad(frame, quad, 0.18);
+      if (cardShapeOk(wide)) quad = wide;
+      const fine = refineQuad(frame, quad, 0.06);
+      if (cardShapeOk(fine)) quad = fine;
     }
     this.quad = quad;
     this.scale = s;
-    this.points = detectFeatures(frame, quad);
+    // Contorno sem cara de carta não é seguido: melhor esperar a próxima leitura do que prender errado.
+    this.points = cardShapeOk(quad) ? detectFeatures(frame, quad) : [];
     this.prev = pyramidOf(frame);
     this.frames = 0;
     this.misses = 0;
@@ -495,7 +525,21 @@ export class CardTracker {
     this.misses = 0;
     this.frames++;
     let quad = this.quad.map((p) => applyAffine(fit.A, p));
-    if (this.frames % 5 === 0) quad = refineQuad(frame, quad, 0.05);
+    if (!cardShapeOk(quad)) {
+      // O movimento achado deforma a carta: os pontos escorregaram para a mesa ou para outra carta.
+      this.misses++;
+      this.ok = false;
+      return false;
+    }
+    if (this.frames % 5 === 0) {
+      // Reencaixe nas bordas só como ajuste fino: se mexer muito, pegou a borda da carta vizinha ou
+      // da mesa, e aceitar faria o contorno "crescer" a cada vez até sair da carta.
+      const refined = refineQuad(frame, quad, 0.05);
+      const w = Math.hypot(quad[1].x - quad[0].x, quad[1].y - quad[0].y);
+      const moved = Math.max(...refined.map((p, i) => Math.hypot(p.x - quad[i].x, p.y - quad[i].y)));
+      const grow = Math.abs(area(refined) / area(quad));
+      if (cardShapeOk(refined) && moved < w * 0.04 && grow > 0.92 && grow < 1.08) quad = refined;
+    }
     const c = centroid(quad);
     if (c.x < 0 || c.y < 0 || c.x > frame.w || c.y > frame.h) {
       this.ok = false;

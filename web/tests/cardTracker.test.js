@@ -99,3 +99,14 @@ test('quando a carta sai da imagem, avisa que perdeu', () => {
   const empty = render({ cx: -500, cy: -500, a: 0, s: 1 });
   assert.equal(t.track(empty), false);
 });
+
+test('cardShapeOk: aceita carta em perspectiva, barra contorno deformado', async () => {
+  const { cardShapeOk } = await import('../src/recognition/cardTracker.js');
+  assert.ok(cardShapeOk([{ x: 220, y: 420 }, { x: 400, y: 420 }, { x: 400, y: 671 }, { x: 220, y: 671 }]));
+  assert.ok(cardShapeOk([{ x: 250, y: 470 }, { x: 395, y: 462 }, { x: 430, y: 640 }, { x: 222, y: 652 }]));
+  // Como no print: canto de baixo escorrendo para a mesa.
+  assert.ok(!cardShapeOk([{ x: 25, y: 620 }, { x: 390, y: 625 }, { x: 470, y: 1280 }, { x: 5, y: 1055 }]));
+  // Achatado (pegou só a caixa de texto) e torto.
+  assert.ok(!cardShapeOk([{ x: 0, y: 0 }, { x: 300, y: 0 }, { x: 300, y: 120 }, { x: 0, y: 120 }]));
+  assert.ok(!cardShapeOk([{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 480, y: 280 }, { x: 280, y: 280 }]));
+});
