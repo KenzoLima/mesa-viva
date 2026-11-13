@@ -161,3 +161,75 @@ h2 small { font: 400 0.8rem system-ui, sans-serif; color: var(--muted); margin-l
 @media (prefers-reduced-motion: reduce) {
   .bf-loading { animation-duration: 2.4s; }
 }
+
+/* ==========================================================================
+   HUD do campo de batalha: nada de faixa por cima da câmera. O status vira um
+   selo no alto e o botão de sair fica no canto de baixo, ao alcance do polegar,
+   sempre fora do entalhe da câmera do celular (safe-area).
+   ========================================================================== */
+#battlefield .hud {
+  inset: 0;
+  padding: 0;
+  display: block;
+  background: none;
+  pointer-events: none;
+}
+#battlefield .status {
+  position: absolute;
+  top: max(10px, env(safe-area-inset-top));
+  left: 50%;
+  translate: -50% 0;
+  width: max-content;
+  max-width: min(62vw, 560px);
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #120e16c4;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  text-wrap: balance;
+  box-shadow: 0 2px 10px #0006;
+}
+#battlefield .status:empty { display: none; }
+#bf-exit {
+  position: absolute;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  min-height: 44px;
+  padding: 9px 18px;
+  border-radius: 999px;
+  border-color: var(--gold-soft);
+  background: #120e16c4;
+  color: var(--text);
+  font-size: 0.92rem;
+  box-shadow: 0 2px 10px #0006;
+  pointer-events: auto;
+}
+#bf-exit:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) {
+  #bf-exit:hover { background: #241c2ee0; border-color: var(--gold); }
+}
+
+/* Modo Mesa deitado: os controles viram um painel no canto direito em vez de
+   uma faixa que cobre a parte de baixo da câmera. */
+#xr-overlay {
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+}
+@media (orientation: landscape) and (min-width: 640px) {
+  #xr-overlay {
+    justify-content: flex-end;
+    align-items: flex-end;
+    background: none;
+    pointer-events: none;
+  }
+  #xr-overlay > * {
+    width: min(360px, 44vw);
+    pointer-events: auto;
+  }
+  #xr-overlay .xr-controls {
+    padding: 10px;
+    border-radius: 14px;
+    background: #120e16d6;
+    border: 1px solid var(--line);
+  }
+}

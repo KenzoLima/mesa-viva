@@ -345,3 +345,160 @@
 @media (prefers-reduced-motion: reduce) {
   #menu .plate { transition: none; }
 }
+
+/* ==========================================================================
+   Paisagem (computador, tablet e celular deitado): a carta deita, como uma
+   carta de plano. À esquerda fica a "face" (nome, ilustração, tipo); à direita
+   a caixa de texto ocupa a altura inteira. O rodapé atravessa as duas colunas.
+   ========================================================================== */
+@media (orientation: landscape) and (min-width: 640px) {
+  #menu {
+    min-height: 0;
+    padding:
+      max(14px, env(safe-area-inset-top))
+      max(14px, env(safe-area-inset-right))
+      max(12px, env(safe-area-inset-bottom))
+      max(14px, env(safe-area-inset-left));
+  }
+
+  #menu .card-frame {
+    max-width: 1120px;
+    max-height: 720px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "title text"
+      "art   text"
+      "type  text"
+      "foot  foot";
+    column-gap: 12px;
+    row-gap: 7px;
+  }
+  #menu .frame-title { grid-area: title; }
+  #menu .frame-art,
+  #menu .frame-art.strip { grid-area: art; min-height: 0; margin-right: 0; }
+  #menu .frame-type { grid-area: type; }
+  #menu .frame-text { grid-area: text; min-height: 0; margin-left: 0; overflow-y: auto; scrollbar-width: thin; }
+  #menu .frame-foot { grid-area: foot; }
+
+  /* Conteúdo da caixa centrado na altura; o texto de ambientação desce para o pé da caixa */
+  #menu .frame-text:not(.fill) > :first-child { margin-top: auto; }
+  #menu .frame-text:not(.fill) > :last-child { margin-bottom: auto; }
+  #menu .frame-text .flavor { margin-top: auto; margin-bottom: 0; }
+  #menu .frame-text:not(.fill) > .flavor:last-child { margin-bottom: 0; }
+  #menu .frame-text:not(.fill) > p:first-child:not(.hint) { font-size: 1.06em; }
+
+  /* Biblioteca: a estante vira uma coluna estreita e a lista ganha o espaço */
+  #menu [data-screen="library"] { grid-template-columns: minmax(0, 0.72fr) minmax(0, 1.6fr); }
+
+  #menu .tabs { max-width: 560px; }
+}
+
+/* Celular deitado: pouca altura. As abas viram um trilho vertical ao lado da
+   carta (onde o polegar alcança) e o recuo do entalhe da câmera é respeitado. */
+@media (orientation: landscape) and (min-width: 640px) and (max-height: 540px) {
+  #menu {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 10px;
+    padding-top: max(8px, env(safe-area-inset-top));
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+  #menu .card-frame {
+    max-height: none;
+    padding: 10px 11px 6px;
+    row-gap: 5px;
+    column-gap: 10px;
+  }
+  #menu .frame-title { min-height: 34px; padding: 3px 8px 3px 11px; }
+  #menu .frame-title h1,
+  #menu .frame-title h2 { font-size: 1.12rem; }
+  #menu .pip { width: 20px; height: 20px; font-size: 0.78rem; }
+  #menu .frame-type { min-height: 27px; padding: 3px 9px 3px 11px; font-size: 0.84rem; }
+  #menu .frame-type small { font-size: 0.74rem; }
+  #menu .frame-art { min-height: 0; }
+  #menu .frame-text { padding: 10px 12px 12px; gap: 8px; font-size: 0.92rem; line-height: 1.36; }
+  #menu .frame-text .hint { font-size: 0.8rem; }
+  #menu .plate { min-height: 42px; padding: 8px 12px; font-size: 0.98rem; }
+  #menu .plate.minor { min-height: 40px; font-size: 0.92rem; }
+  #menu .flavor { padding-top: 8px; font-size: 0.86rem; }
+  #menu .frame-foot { min-height: 24px; }
+  #menu .frame-foot small { font-size: 0.6rem; }
+  #menu .frame-pt { margin-top: -12px; min-width: 52px; padding: 3px 10px; font-size: 1rem; }
+  #menu #results li { padding: 6px 2px; }
+  /* coluna da estante é estreita: a contagem desce para a linha de baixo */
+  #menu [data-screen="library"] .frame-type { flex-wrap: wrap; row-gap: 0; padding-top: 4px; padding-bottom: 4px; }
+  #menu [data-screen="library"] .frame-type small { white-space: nowrap; }
+
+  #menu .tabs {
+    width: 124px;
+    max-width: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+    /* desce um pouco: o selo da versão fica no canto de cima */
+    padding-top: 18px;
+  }
+  #menu .tabs .plate { min-height: 48px; font-size: 0.92rem; }
+}
+
+/* Computador e tablet com folga: carta grande, letras maiores, lista em colunas */
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 680px) {
+  #menu { gap: 18px; padding-top: max(24px, env(safe-area-inset-top)); padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+  #menu .card-frame {
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    padding: 18px 18px 12px;
+    border-radius: 20px;
+    column-gap: 18px;
+    row-gap: 10px;
+  }
+  #menu .card-frame::before { inset: 6px; background-size: 9px 9px; }
+  #menu .frame-title { min-height: 54px; padding: 7px 12px 7px 16px; border-radius: 11px 11px 6px 6px; }
+  #menu .frame-title h1,
+  #menu .frame-title h2 { font-size: 1.7rem; }
+  #menu .mana { gap: 6px; }
+  #menu .pip { width: 28px; height: 28px; font-size: 1rem; }
+  #menu .frame-type { min-height: 40px; padding: 6px 14px 6px 16px; font-size: 1.06rem; }
+  #menu .frame-type small { font-size: 0.92rem; }
+  #menu .set-mark { width: 17px; height: 17px; }
+  #menu .frame-text { padding: 26px 30px 28px; gap: 14px; font-size: 1.12rem; line-height: 1.5; }
+  #menu .frame-text .hint { font-size: 0.96rem; margin-top: -6px; }
+  #menu .frame-text:not(.fill) > p:first-child:not(.hint) { font-size: 1.24em; line-height: 1.38; }
+  #menu .plate { min-height: 56px; font-size: 1.18rem; border-radius: 7px; }
+  #menu .plate.minor { min-height: 50px; font-size: 1.08rem; }
+  #menu .flavor { padding-top: 14px; }
+  #menu .frame-foot { min-height: 36px; padding: 0 6px 0 8px; }
+  #menu .frame-foot small { font-size: 0.74rem; }
+  #menu .frame-pt { margin-top: -20px; min-width: 76px; padding: 7px 16px; font-size: 1.32rem; border-radius: 9px; }
+
+  #menu .frame-text input[type="search"] { padding: 13px 16px; font-size: 1.08rem; }
+  #menu #results {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    align-content: start;
+    column-gap: 22px;
+  }
+  #menu #results li { padding: 10px 2px; }
+  #menu #results li:last-child { border-bottom: 1px solid rgba(70, 48, 16, 0.3); box-shadow: 0 1px 0 rgba(255, 244, 210, 0.45); }
+  #menu #results strong { font-size: 1.08rem; }
+
+  #menu [data-screen="library"] { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.5fr); }
+
+  #menu .tabs { max-width: 600px; gap: 12px; }
+  #menu .tabs .plate { min-height: 50px; font-size: 1.04rem; }
+}
+
+/* Monitores grandes: a carta cresce junto, sem esticar além do que se lê bem */
+@media (orientation: landscape) and (min-width: 1600px) and (min-height: 940px) {
+  #menu .card-frame { max-width: 1320px; max-height: 820px; }
+  #menu .frame-title h1,
+  #menu .frame-title h2 { font-size: 1.9rem; }
+}
+
+/* Mouse: a placa clareia sob o cursor, como metal pegando a luz */
+@media (hover: hover) and (pointer: fine) {
+  #menu .plate:not(:disabled):hover { filter: brightness(1.09) saturate(1.05); }
+  #menu .tabs .plate[aria-current="page"]:hover { filter: none; }
+}
