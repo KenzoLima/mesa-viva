@@ -217,6 +217,10 @@
         <input id="xr-search" type="search" placeholder="Buscar carta para invocar" autocomplete="off" aria-label="Buscar carta para invocar" />
         <select id="xr-card-select" aria-label="Carta que o próximo toque invoca"></select>
       </div>
+      <label id="xr-recognize-row" class="xr-check" hidden>
+        <input id="xr-recognize" type="checkbox" checked />
+        <span>Reconhecer as cartas na mesa <small id="xr-scan" aria-live="polite"></small></span>
+      </label>
       <div class="xr-row">
         <button id="xr-confirm" type="button" hidden>Confirmar mesa</button>
         <button id="xr-retry" type="button" hidden>Tentar de novo</button>

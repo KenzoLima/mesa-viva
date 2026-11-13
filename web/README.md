@@ -73,6 +73,37 @@ Se a câmera levar um esbarrão (girar ou inclinar ~1–2° ou mais), aparece "A
 
 A matemática fica em `src/table/cameraPose.js` (homografia, focal pelo método de Zhang, pose, "imã", câmera mexida), com testes em `tests/cameraPose.test.js`. O desenho da mesa é o mesmo do modo RA (`src/table/tableVisuals.js`).
 
+## Reconhecimento das cartas na mesa (os dois modos Mesa)
+
+Depois de confirmar a mesa, com **Reconhecer as cartas na mesa** ligado, o app lê as cartas sozinho e a criatura de cada uma surge em pé sobre ela, olhando para onde o topo da carta aponta:
+
+- **carta nova** → a criatura surge; **carta arrastada** → a criatura desliza junto (abaixo de 1,5 cm ou 8° nada muda);
+- **carta virada ~90°** → a criatura gira e ataca; desvirada, volta;
+- **carta tirada da mesa** → a criatura sai (só depois de não ser vista nem em pé nem virada; carta coberta ou fora da câmera não conta);
+- duas cópias da mesma carta em lugares diferentes viram duas criaturas; um nome mal lido em cima de uma carta conhecida é ignorado (só troca se repetir 3 vezes).
+
+Como funciona (`src/table/cardScanner.js`, `tableCards.js`):
+
+1. A área de jogo é dividida em blocos de ~30 × 17 cm: os do seu lado e os do lado do oponente.
+2. Cada bloco vira uma **vista de cima** (5 px/mm) refeita a partir da calibração: a perspectiva some, a carta do outro lado da mesa deixa de aparecer achatada e toda carta tem o mesmo tamanho. O "para cima" da vista é o lado para onde o topo das cartas daquele bloco aponta (seu lado, lado do oponente; e, a cada duas voltas, as cartas viradas).
+3. **Binarização local** e OCR do nome (o mesmo leitor do campo de batalha). Sem a binarização o Tesseract não lê nada com a mesa escura em volta.
+4. O contorno da carta é achado na vista de cima e conferido com 63 × 88 mm (carta na mão de alguém fica de fora). Se o contorno parar na ilustração, a carta é completada pela borda de cima; se não aparecer, um nome lido com certeza dá a posição.
+
+Cada bloco leva ~2–3 s no PC: uma carta do seu lado aparece em poucos segundos, uma do lado do oponente em ~15–20 s, e uma carta virada é percebida em até ~40 s.
+
+**Resolução é o que manda.** O nome tem ~3 mm de altura; o OCR precisa dele com uns 10 px na imagem da câmera. Medido com uma câmera a ~60 cm da mesa e 45° para baixo:
+
+| Câmera | Seu lado | Lado do oponente |
+|---|---|---|
+| 1080p (webcam comum) | lê | **não lê** (a carta fica com ~110 px de altura) |
+| 4K (celular num suporte) | lê | lê |
+
+O modo câmera parada pede 4K à câmera. Se, pela calibração, as cartas do lado de lá ficarem com menos de ~140 px, aparece o aviso para subir ou aproximar a câmera. Câmera mais alta e mais de cima ajuda mais que zoom.
+
+**No modo RA (Android)** a imagem vem da própria sessão de RA pelo recurso `camera-access` do Chrome (a textura da câmera é copiada da GPU em `src/table/xrCameraImage.js`). Se o celular não oferecer esse recurso, a opção aparece desligada com o aviso para usar a Mesa com câmera parada.
+
+Testado com uma webcam sintética (mesa, folha e cartas desenhadas com nome, tipo e texto, em 1080p e 4K) passando pelo OCR real, nos dois modos; no modo RA, também com a imagem chegando por uma textura da GPU como no Chrome. Ainda não testado com cartas e câmeras reais.
+
 ## Publicar de graça (Vercel)
 
 O app é publicado na Vercel, com HTTPS de verdade e sem aviso de certificado. A configuração fica em `web/vercel.json` (`npm ci`, `npm run build`, saída em `dist/`). Para publicar, rode `vercel --prod` dentro da pasta `web/`.
@@ -122,6 +153,7 @@ Mudou o `model_map.json`? Rode `npm run sync-data`. O CI confere com `--check`.
 | `src/modes/table.js` | `Table/TableCalibrationController.cs`, `PlaneScanVisualizer.cs`, `UI/CalibrationScreenView.cs`, cena `Mesa` | — |
 | `src/table/tableVisuals.js` | `Table/TableAreaVisualizer.cs` | — |
 | `src/modes/tableCamera.js`, `src/table/cameraPose.js` | — (só na web: Mesa sem ARCore, PLANO §5.2 método 2) | — |
+| `src/table/cardScanner.js`, `src/table/tableCards.js`, `src/table/xrCameraImage.js` | — (cartas na mesa: PLANO §4 retificar, §5.2 método 1, §5.3) | — |
 | `src/modes/cards.js` | `Phase0/CardCreatureSpawner.cs`, cena `Fase0` | — |
 | `src/creatures.js` | `Phase0/CardPrefabLibrary.cs`, `CreatureSpawnFx.cs` | — |
 

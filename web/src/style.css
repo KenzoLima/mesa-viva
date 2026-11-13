@@ -281,6 +281,11 @@ h2 small { font: 400 0.8rem system-ui, sans-serif; color: var(--muted); margin-l
   color: var(--text);
   border: 1px solid var(--line);
 }
+.xr-check { display: flex; gap: 10px; align-items: center; font-size: 0.9rem; min-height: 40px; }
+.xr-check[hidden] { display: none; }
+.xr-check input { width: 20px; height: 20px; accent-color: var(--gold); flex: none; }
+.xr-check small { display: block; color: var(--muted); font-size: 0.8rem; }
+.xr-check small:empty { display: none; }
 /* Mesa com câmera parada: vídeo, 3D e cantos empilhados; o toque vai para o contêiner. */
 #table-cam { background: #000; overflow: hidden; touch-action: none; user-select: none; cursor: crosshair; }
 #table-cam .bf-outline, #table-cam .bf-canvas { pointer-events: none; }

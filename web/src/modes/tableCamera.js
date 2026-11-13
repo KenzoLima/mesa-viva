@@ -14,8 +14,10 @@ import {
 } from '../table/cameraPose.js';
 import {
   HANDLE_OFFSET, v3, frameMatrix, makeArea, setAreaOpacity, disposeTree, makeTableRig, fitShadowCatcher,
-  summonOnTable, updateCreatures, animateAreaFade,
+  summonOnTable, updateCreatures, animateAreaFade, RecognizedCreatures,
 } from '../table/tableVisuals.js';
+import { TableCards, planScans, scanOrder, coverage } from '../table/tableCards.js';
+import { TableCardScanner } from '../table/cardScanner.js';
 
 const GOLD = '#d4af37';
 const CORNER_GRAB = 28; // px na tela para agarrar um canto
@@ -51,7 +53,7 @@ function grayOf(ctx, w, h) {
  * pickCard(): a carta que o próximo toque invoca.
  * Retorna uma função que encerra o modo.
  */
-export async function startCameraTableMode({ view, ui, resolver, pickCard, onEnd }) {
+export async function startCameraTableMode({ view, ui, catalog, resolver, pickCard, onEnd }) {
   const video = document.createElement('video');
   for (const a of ['playsinline', 'muted', 'autoplay']) video.setAttribute(a, '');
   video.playsInline = true;
@@ -64,7 +66,8 @@ export async function startCameraTableMode({ view, ui, resolver, pickCard, onEnd
   ui.status.textContent = 'Abrindo a câmera…';
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: false,
-    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+    // 4K quando der: na mesa as cartas do lado de lá aparecem pequenas, e o nome só é lido com resolução.
+    video: { facingMode: { ideal: 'environment' }, width: { ideal: 3840 }, height: { ideal: 2160 } },
   });
   video.srcObject = stream;
   await video.play();
@@ -147,7 +150,9 @@ export async function startCameraTableMode({ view, ui, resolver, pickCard, onEnd
   const MESSAGES = {
     corners: () => `Ponha ${REF_PHRASE[refKey]} no centro da mesa e toque nos 4 cantos (${Math.min(clicks.length, 4)}/4)`,
     adjusting: () => 'Arraste os cantos dourados até a borda, mova ou gire a área e confirme',
-    confirmed: () => 'Toque na mesa para invocar a criatura escolhida',
+    confirmed: () => (ui.recognize.checked
+      ? 'Ponha as cartas na mesa, ou toque nela para invocar a criatura escolhida'
+      : 'Toque na mesa para invocar a criatura escolhida'),
   };
 
   function renderStatus() {
@@ -181,6 +186,7 @@ export async function startCameraTableMode({ view, ui, resolver, pickCard, onEnd
     ui.corners.hidden = state !== 'adjusting' && !(state === 'corners' && clicks.length);
     ui.recalibrate.hidden = state !== 'confirmed';
     ui.cardSelect.hidden = state !== 'confirmed';
+    ui.recognizeRow.hidden = state !== 'confirmed';
     for (const b of ui.seats) b.setAttribute('aria-pressed', String(b.dataset.seat === seat));
     renderStatus();
   }
@@ -331,6 +337,7 @@ export async function startCameraTableMode({ view, ui, resolver, pickCard, onEnd
     }, { signal });
   }
   ui.corners.addEventListener('click', () => {
+    forgetCards();
     clicks = [];
     cal = null;
     frame = null;
@@ -348,6 +355,7 @@ export async function startCameraTableMode({ view, ui, resolver, pickCard, onEnd
   ui.recalibrate.addEventListener('click', () => {
     fade = null;
     reference = null;
+    forgetCards(); // a mesa vai mudar: as cartas são lidas de novo depois de confirmar
     if (moved) {
       // A pose antiga não vale mais: marca os cantos de novo. A área (relativa à folha) é mantida.
       moved = false;
@@ -359,6 +367,10 @@ export async function startCameraTableMode({ view, ui, resolver, pickCard, onEnd
     }
     setFrame(frame);
     go('adjusting');
+  }, { signal });
+  ui.recognize.addEventListener('change', () => {
+    if (!ui.recognize.checked) forgetCards();
+    renderStatus();
   }, { signal });
   ui.exit.addEventListener('click', () => stop(), { signal });
   window.addEventListener('resize', resize, { signal });
@@ -501,6 +513,99 @@ export async function startCameraTableMode({ view, ui, resolver, pickCard, onEnd
     }
   }
 
+  // ---------------- reconhecimento das cartas na mesa
+  // Lê o vídeo de tempos em tempos (OCR); cada carta vira um lugar na mesa e ganha a criatura dela.
+  const cards = new TableCards();
+  const recognized = new RecognizedCreatures(tableRoot, resolver, (t) => say(t, 3));
+  let scanner = null;
+  let scans = 0;
+
+  function forgetCards() {
+    cards.clear();
+    recognized.clear();
+    ui.scanInfo.textContent = '';
+  }
+
+  /** Ponto da mesa → pixel do VÍDEO (ou null se atrás da câmera). */
+  function tableToVideo(pos) {
+    if (!cal || !frame) return null;
+    return projectToView(frame.tableToWorld(pos), { fx: cal.f, fy: cal.f, cx: cal.cx, cy: cal.cy }, cal);
+  }
+
+  /** O lugar da mesa aparece no vídeo (com folga da borda)? */
+  function tableVisible(pos) {
+    const q = tableToVideo(pos);
+    return !!q && q.x > VW * 0.03 && q.x < VW * 0.97 && q.y > VH * 0.03 && q.y < VH * 0.97;
+  }
+
+  let order = [];
+  let jobIndex = 0;
+  let planFor = '';
+  let lastScan = null; // resumo da última leitura terminada (depuração)
+  let smallHint = '';
+
+  /**
+   * Menor altura de carta (px do vídeo) na área de jogo. Abaixo de ~140 px o nome não é lido
+   * (medido: 108 px não lê, 216 px lê); aí o app avisa para subir/aproximar a câmera.
+   */
+  function smallestCardPx() {
+    let min = Infinity;
+    const W = frame.width / 2;
+    const D = frame.depth / 2;
+    for (const [x, y] of [[-W, D], [0, D], [W, D], [-W, 0], [W, 0], [0, -D]]) {
+      const a = tableToVideo({ x, y: y + 0.044 });
+      const b = tableToVideo({ x, y: y - 0.044 });
+      if (a && b) min = Math.min(min, Math.hypot(a.x - b.x, a.y - b.y));
+    }
+    return min;
+  }
+
+  async function scanLoop() {
+    while (!stopped) {
+      if (state !== 'confirmed' || !ui.recognize.checked || moved || !cal || !frame) {
+        await new Promise((r) => setTimeout(r, 300));
+        continue;
+      }
+      try {
+        if (!scanner) {
+          ui.scanInfo.textContent = 'preparando a leitura…';
+          scanner = await new TableCardScanner(catalog).ready();
+        }
+        const calAtScan = cal;
+        // A mesa é lida por blocos (seu lado, lado do oponente, cartas viradas), um por vez.
+        const key = `${cal.f}|${frame.center.x}|${frame.center.z}|${frame.forward.x}|${frame.width}`;
+        if (planFor !== key) {
+          order = scanOrder(planScans(frame, tableVisible));
+          jobIndex = 0;
+          planFor = key;
+          smallHint = smallestCardPx() < 140
+            ? ' · longe da câmera as cartas ficam pequenas demais para ler: suba ou aproxime a câmera (ou use 4K)'
+            : '';
+        }
+        if (!order.length) {
+          ui.scanInfo.textContent = 'a área de jogo não aparece na câmera';
+          await new Promise((r) => setTimeout(r, 1000));
+          continue;
+        }
+        const job = order[jobIndex++ % order.length];
+        const detections = await scanner.scan(scanner.gray(video, VW, VH), job, tableToVideo);
+        scans++;
+        lastScan = scanner.last;
+        // Recalibrou durante a leitura: a posição calculada já não vale.
+        if (stopped || state !== 'confirmed' || cal !== calAtScan || !ui.recognize.checked) continue;
+        // Só conta como sumida a carta que ESTE bloco teria lido.
+        const couldRead = (pos, e) => coverage(job, pos, e, tableVisible);
+        recognized.apply(cards.update(detections, clock, couldRead));
+        const n = cards.entries.size;
+        ui.scanInfo.textContent = (n ? `${n} carta${n > 1 ? 's' : ''} na mesa` : 'nenhuma carta lida ainda') + smallHint;
+      } catch (err) {
+        console.warn('Leitura das cartas falhou', err);
+        ui.scanInfo.textContent = 'a leitura falhou; tentando de novo';
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+    }
+  }
+
   // ---------------- quadro a quadro
   const timer = new THREE.Clock();
   renderer.setAnimationLoop(() => {
@@ -519,6 +624,7 @@ export async function startCameraTableMode({ view, ui, resolver, pickCard, onEnd
       }
     }
     updateCreatures(creatures, dt);
+    recognized.update(dt);
     drawMarks();
     if (cal) renderer.render(scene, camera);
     else renderer.clear();
@@ -528,7 +634,7 @@ export async function startCameraTableMode({ view, ui, resolver, pickCard, onEnd
   refreshUi();
   // Só no `npm run dev`: deixa os testes no navegador lerem o estado (o build de produção remove).
   if (import.meta.env?.DEV) {
-    view.__mesaDebug = () => ({ state, clicks, cal, frame, moved, k, creatures: creatures.length, noise, edges: reference?.idx.length ?? 0 });
+    view.__mesaDebug = () => ({ state, clicks, cal, frame, moved, k, creatures: creatures.length, noise, edges: reference?.idx.length ?? 0, cards: [...cards.entries.values()], scans, lastLines: scanner?.lastLines, lastScan, videoSize: [VW, VH], smallestCardPx: frame && cal ? smallestCardPx() : null });
     view.__mesaShift = () => reference && imageShift(reference.img, smallGray(), SHIFT_SIZE[0], SHIFT_SIZE[1], 3, reference.idx);
   }
 
@@ -537,6 +643,7 @@ export async function startCameraTableMode({ view, ui, resolver, pickCard, onEnd
     if (stopped) return;
     stopped = true;
     listeners.abort();
+    ui.recognizeRow.hidden = true;
     renderer.setAnimationLoop(null);
     for (const t of stream.getTracks()) t.stop();
     if (area) disposeTree(area); // as criaturas não: a geometria dos modelos é compartilhada pelo cache
@@ -548,5 +655,6 @@ export async function startCameraTableMode({ view, ui, resolver, pickCard, onEnd
     ui.corners.hidden = true;
     onEnd?.();
   }
+  scanLoop();
   return stop;
 }
