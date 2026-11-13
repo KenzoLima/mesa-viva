@@ -15,13 +15,12 @@ import { getOcrReaders } from '../recognition/ocr.js';
 import { NameMatcher, findCardsInLine, mergeRowLines } from '../recognition/nameMatcher.js';
 import { detectCardQuad } from '../recognition/cardDetector.js';
 import { solveHomography } from './cameraPose.js';
-import { measureCard, completeFromTop, cardFromTitle } from './tableCards.js';
+import { measureCard, completeFromTop, cardFromTitle, sameFootprint } from './tableCards.js';
 
 export const RES = 5000; // px por metro na vista de cima (5 px/mm: o nome fica com ~15 px de altura)
 const DETECT_WIDTH = 640; // resolução usada para achar o contorno da carta
 const BIN_WINDOW = 31; // px: janela da binarização local
 const BIN_OFFSET = 8; // quanto mais escuro que a vizinhança o pixel precisa ser para virar texto
-const SAME_CARD = 0.035; // m: duas leituras mais perto que isso são a mesma carta física
 const MARGIN = 0.055; // m: folga em volta do bloco (meia diagonal da carta: carta na divisa entra inteira)
 
 function ocrLines(data) {
@@ -211,7 +210,10 @@ export class TableCardScanner {
       const quad = detectCardQuad(frame, { x0: x0 * s, y0: y0 * s, x1: x1 * s, y1: y1 * s }, { anchor: m.anchor });
       let how = 'contorno';
       let measured = quad ? measureCard(quad.map((p) => view.toTable(p.x / s, p.y / s))) : null;
-      if (quad && !measured?.sizeOk) {
+      // Token não entra por estimativa: o nome dele é igual a um tipo de criatura ("Dragon", "Elf"),
+      // que aparece na linha de tipo das cartas comuns; estimar a carta a partir dali erra o lugar.
+      const estimable = !m.card.isToken;
+      if (quad && !measured?.sizeOk && estimable) {
         // Contorno curto (parou na ilustração): completa pela borda de cima, que o nome ancora.
         const full = completeFromTop(quad.map((p) => view.toTable(p.x / s, p.y / s)));
         if (full) {
@@ -221,7 +223,7 @@ export class TableCardScanner {
       }
       // Sem contorno aproveitável: só com o nome lido com certeza, pela posição do nome na carta.
       const trusty = m.anchor === 'title' && m.strict && !m.keyword && m.score >= 0.95 && m.text.replace(/[^\p{L}]/gu, '').length >= 6;
-      if (!measured?.sizeOk && trusty) {
+      if (!measured?.sizeOk && trusty && estimable) {
         measured = measureCard(cardFromTitle(m.bbox, RES).map((p) => view.toTable(p.x, p.y)));
         how = 'pelo nome';
       }
@@ -229,10 +231,12 @@ export class TableCardScanner {
         info.kept.push(`${m.card.name}: tamanho ${measured ? `${(measured.width * 1000).toFixed(0)}×${(measured.height * 1000).toFixed(0)} mm` : '?'}`);
         continue; // na mão de alguém, ou o contorno pegou outra coisa
       }
-      const dup = detections.find((d) => Math.hypot(d.center.x - measured.center.x, d.center.y - measured.center.y) < SAME_CARD);
+      const dup = detections.find((d) => sameFootprint(d, measured));
       if (dup) {
-        // Mesma carta física lida duas vezes: o nome no topo vale mais que um nome achado no texto.
-        if (dup.anchor !== 'title' && m.anchor === 'title') Object.assign(dup, { card: m.card, anchor: m.anchor });
+        // Mesma carta física lida duas vezes (o nome e a linha de tipo): o nome no topo vale mais.
+        if (dup.anchor !== 'title' && m.anchor === 'title') {
+          Object.assign(dup, { card: m.card, anchor: m.anchor, center: measured.center, yaw: measured.yaw });
+        }
         continue;
       }
       info.kept.push(`${m.card.name}: ok (${how})`);

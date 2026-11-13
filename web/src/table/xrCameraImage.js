@@ -51,16 +51,17 @@ export class XrCameraImage {
   }
 
   /**
-   * Chamar DENTRO do quadro da sessão, depois de desenhar a cena. view: XRView do quadro.
+   * Chamar DENTRO do quadro da sessão, depois de desenhar a cena. view: XRView do quadro;
+   * maxSide: lado maior da foto (o leitor usa 1600; o vigia de giro, uma foto pequena).
    * Retorna { canvas, w, h, proj, view } ou null (aparelho sem a imagem neste quadro).
    */
-  grab(view) {
+  grab(view, maxSide = MAX_SIDE) {
     if (!view?.camera) return null;
     const tex = this.binding.getCameraImage(view.camera);
     if (!tex) return null;
     const gl = this.gl;
     if (!this.program) this.#setup();
-    const k = Math.min(1, MAX_SIDE / Math.max(view.camera.width, view.camera.height));
+    const k = Math.min(1, maxSide / Math.max(view.camera.width, view.camera.height));
     const w = Math.round(view.camera.width * k);
     const h = Math.round(view.camera.height * k);
 

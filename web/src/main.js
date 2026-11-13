@@ -99,29 +99,13 @@ if (hasXr) {
   $('btn-table').disabled = false;
   $('btn-table').textContent = 'Mesa (RA)';
   $('btn-table-cam').hidden = !hasCamera;
-  $('table-info').textContent = 'RA: detecta a mesa e invoca criaturas onde você tocar. Câmera parada: celular num suporte, com uma folha A4.';
+  $('table-info').textContent = 'RA: detecta a mesa e cada carta posta nela vira a criatura dela. Câmera parada: celular num suporte, com uma folha A4.';
 } else if (hasCamera) {
   $('btn-table').disabled = false;
-  $('table-info').textContent = 'Câmera parada (webcam ou celular num suporte): marque uma folha A4 na mesa e invoque criaturas onde clicar.';
+  $('table-info').textContent = 'Câmera parada (webcam ou celular num suporte): marque uma folha A4 na mesa; cada carta posta nela vira a criatura dela.';
 } else {
   $('table-info').textContent = 'Este navegador não dá acesso à câmera.';
 }
-
-// Com o catálogo inteiro (~30 mil cartas) não dá para listar tudo: busca e mostra as melhores.
-const select = $('xr-card-select');
-function fillCardOptions(list) {
-  select.replaceChildren(...list.map((card) => {
-    const opt = document.createElement('option');
-    opt.value = card.oracleId;
-    opt.textContent = `${card.displayName} — ${resolver.label(resolver.resolve(card).modelId)}`;
-    return opt;
-  }));
-}
-const STARTERS = ['Shivan Dragon', 'Llanowar Elves', 'Serra Angel', 'Goblin Guide', 'Grizzly Bears', 'Lightning Bolt', 'Forest'];
-fillCardOptions(STARTERS.map((n) => catalog.lookup(n)[0]).filter(Boolean));
-$('xr-search').addEventListener('input', (e) => {
-  if (e.target.value.trim().length >= 2) fillCardOptions(catalog.search(e.target.value, 30));
-});
 
 function tableUi(overlay) {
   return {
@@ -137,7 +121,6 @@ function tableUi(overlay) {
     confirm: $('xr-confirm'),
     retry: $('xr-retry'),
     recalibrate: $('xr-recalibrate'),
-    cardSelect: $('xr-card'),
     exit: $('xr-exit'),
     referenceRow: $('xr-reference-row'),
     reference: $('xr-reference'),
@@ -160,7 +143,6 @@ async function startXrTable() {
       ui: tableUi(overlay),
       catalog,
       resolver,
-      pickCard: () => catalog.get(select.value),
       onEnd: () => {
         overlay.hidden = true;
         $('menu').hidden = false;
@@ -198,7 +180,6 @@ async function startCameraTable() {
       ui: tableUi(overlay),
       catalog,
       resolver,
-      pickCard: () => catalog.get(select.value),
       onEnd: close,
     });
   } catch (err) {

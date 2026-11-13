@@ -5,8 +5,8 @@ O Mesa Viva no navegador. Não precisa de loja, conta da Apple nem build nativo.
 | Modo | Tecnologia | Onde roda | O que faz |
 |---|---|---|---|
 | **Cartas** | MindAR (rastreamento de imagem) + Three.js | iPhone (Safari) e Android (Chrome) | Reconhece a carta e faz a criatura surgir em cima dela |
-| **Mesa (RA)** | WebXR `immersive-ar` + `hit-test` (ARCore) | Android (Chrome) | Detecta o plano da mesa, calibra a área de jogo e invoca criaturas onde você toca |
-| **Mesa com câmera parada** | câmera + calibração por uma folha A4 (homografia) + Three.js | PC (webcam), iPhone, qualquer Android | A câmera fica num suporte; você marca os 4 cantos de uma folha na mesa e invoca criaturas onde clicar |
+| **Mesa (RA)** | WebXR `immersive-ar` + `hit-test` (ARCore) | Android (Chrome) | Detecta o plano da mesa, calibra a área de jogo e cada carta posta nela vira a criatura dela |
+| **Mesa com câmera parada** | câmera + calibração por uma folha A4 (homografia) + Three.js | PC (webcam), iPhone, qualquer Android | A câmera fica num suporte; você marca os 4 cantos de uma folha na mesa e cada carta posta nela vira a criatura dela |
 | **Bestiário** | catálogo + `ModelResolver` | qualquer navegador | Mostra qual modelo cada carta usa e por quê |
 
 O Safari do iPhone e os navegadores de PC não têm WebXR com RA. Neles o botão **Mesa** abre a versão com câmera parada.
@@ -42,7 +42,7 @@ O fluxo é o da calibração do plano (`docs/PLANO.md` §3.5 e `docs/MESA_GUIA.m
 2. **Tocar no centro:** toque na mesa (onde está o anel dourado). Tocar fora avisa e vibra.
 3. **Ajustar:** arraste dentro da área para mover; arraste a **alça** (o disco além do lado do oponente) para girar. Há **Girar 90°**, **Trocar lados**, **De que lado você está?** e **Tamanho**.
 4. **Confirmar:** a mesa vira uma âncora do ARCore (não escorrega quando você anda) e a área pisca e some.
-5. **Jogar:** escolha a carta e toque na mesa: a criatura surge ali, olhando para o outro lado, com sombra e altura pelo poder (PLANO §5.4). Fora da área, a área aparece de relance. **Recalibrar** refaz a mesa sem apagar as criaturas.
+5. **Jogar:** ponha as cartas na mesa: cada uma vira a criatura dela (veja "Reconhecimento das cartas na mesa"). Não há mais invocação por toque: as criaturas vêm só das cartas. **Recalibrar** refaz a mesa e lê as cartas de novo.
 
 Com o rastreamento perdido (câmera coberta, movimento brusco), aparece "Rastreamento perdido" e as criaturas congelam até voltar.
 
@@ -54,7 +54,8 @@ Recursos do WebXR usados: `hit-test` (obrigatório) e, quando o aparelho dá, `d
 - [ ] Tocar na mesa mostra a área com VOCÊ perto do celular e OPONENTE longe.
 - [ ] Arrastar a alça gira a área; arrastar dentro dela a move. "Girar 90°", "Trocar lados", os lados e o tamanho funcionam.
 - [ ] "Confirmar" faz a área piscar e sumir. Ao andar com o celular, as criaturas ficam no mesmo lugar.
-- [ ] Tocar no seu lado invoca a criatura olhando para o oponente; no outro lado, olhando para você.
+- [ ] Uma carta posta do seu lado vira a criatura olhando para o oponente; do outro lado, olhando para você.
+- [ ] Virar a carta 90° (para qualquer lado) faz a criatura atacar em menos de 1 s.
 - [ ] Ao cobrir a câmera, aparece "Rastreamento perdido". Ao descobrir, volta sozinho.
 - [ ] Numa mesa lisa e branca, depois de ~15 s aparece "Não encontrei a mesa".
 
@@ -65,7 +66,7 @@ Sem WebXR o app não sabe onde a câmera está. Então a câmera fica **parada**
 1. Ponha uma **folha A4** no centro da mesa e toque (ou clique) nos **4 cantos** dela, em qualquer ordem. O lado de cima da imagem é o do oponente.
 2. O "imã" encaixa cada canto na borda real do papel (precisão abaixo de 1 pixel) e o app calcula a posição da câmera e a abertura da lente. Ele descobre sozinho se a folha está em pé ou deitada.
 3. Ajuste como no modo RA: arraste os cantos dourados se algum ficou fora, mova ou gire a área, "Girar 90°", "Trocar lados", lado do jogador e tamanho. **Confirmar** e pode tirar a folha da mesa.
-4. Clique na mesa para invocar a criatura escolhida, com sombra e altura pelo poder.
+4. Ponha as cartas na mesa: cada uma vira a criatura dela, com sombra e altura pelo poder (o clique na mesa só serve para ajustar a área).
 
 Em **Referência** dá para trocar a folha A4 por folha carta (EUA), **playmat** (61 × 35 cm, o mais preciso) ou uma carta. Uma carta sozinha é pequena demais: um erro de 1 pixel no canto vira dezenas de pixels na borda da área. A folha A4, com o "imã", fica em poucos pixels.
 
@@ -78,7 +79,7 @@ A matemática fica em `src/table/cameraPose.js` (homografia, focal pelo método 
 Depois de confirmar a mesa, com **Reconhecer as cartas na mesa** ligado, o app lê as cartas sozinho e a criatura de cada uma surge em pé sobre ela, olhando para onde o topo da carta aponta:
 
 - **carta nova** → a criatura surge; **carta arrastada** → a criatura desliza junto (abaixo de 1,5 cm ou 8° nada muda);
-- **carta virada ~90°** → a criatura gira e ataca; desvirada, volta;
+- **carta virada ~90°, para qualquer lado** → a criatura se volta para o oponente e **ataca na hora** (em menos de 1 s, sem esperar o OCR; o golpe do modelo, ou um bote quando o modelo não tem); desvirada, volta;
 - **carta tirada da mesa** → a criatura sai (só depois de não ser vista nem em pé nem virada; carta coberta ou fora da câmera não conta);
 - duas cópias da mesma carta em lugares diferentes viram duas criaturas; um nome mal lido em cima de uma carta conhecida é ignorado (só troca se repetir 3 vezes).
 
@@ -89,7 +90,9 @@ Como funciona (`src/table/cardScanner.js`, `tableCards.js`):
 3. **Binarização local** e OCR do nome (o mesmo leitor do campo de batalha). Sem a binarização o Tesseract não lê nada com a mesa escura em volta.
 4. O contorno da carta é achado na vista de cima e conferido com 63 × 88 mm (carta na mão de alguém fica de fora). Se o contorno parar na ilustração, a carta é completada pela borda de cima; se não aparecer, um nome lido com certeza dá a posição.
 
-Cada bloco leva ~2–3 s no PC: uma carta do seu lado aparece em poucos segundos, uma do lado do oponente em ~15–20 s, e uma carta virada é percebida em até ~40 s.
+Cada bloco leva ~2–3 s no PC: uma carta do seu lado aparece em poucos segundos e uma do lado do oponente em ~15–20 s.
+
+**Virar para atacar, na hora** (`src/table/turnWatch.js`, `cardWatch.js`): o OCR é lento demais para isso, então um vigia separado olha as cartas já reconhecidas 4 vezes por segundo. Para cada carta ele recorta da imagem um quadrado de 14 cm da vista de cima em volta dela (0,6 px/mm, sempre na orientação em que a carta entrou) e compara com o recorte de quando ela entrou, girado 0°, +90°, 180° e −90° (correlação normalizada, procurando um deslocamento de até 3 cm: a carta escorrega ao ser virada, e a posição lida pode errar um pouco). A arte e o texto da carta são únicos, então o giro que casa melhor diz para que lado ela foi virada. Precisa de 2 leituras seguidas (~0,5 s) para valer; mão na frente não casa nada e não muda nada. O mesmo vigia percebe a carta tirada da mesa (nada casa por 4 s; a criatura sai ~10 s depois) e evita que uma carta ainda lá seja dada como sumida só porque o OCR não a leu.
 
 **Resolução é o que manda.** O nome tem ~3 mm de altura; o OCR precisa dele com uns 10 px na imagem da câmera. Medido com uma câmera a ~60 cm da mesa e 45° para baixo:
 
@@ -153,7 +156,7 @@ Mudou o `model_map.json`? Rode `npm run sync-data`. O CI confere com `--check`.
 | `src/modes/table.js` | `Table/TableCalibrationController.cs`, `PlaneScanVisualizer.cs`, `UI/CalibrationScreenView.cs`, cena `Mesa` | — |
 | `src/table/tableVisuals.js` | `Table/TableAreaVisualizer.cs` | — |
 | `src/modes/tableCamera.js`, `src/table/cameraPose.js` | — (só na web: Mesa sem ARCore, PLANO §5.2 método 2) | — |
-| `src/table/cardScanner.js`, `src/table/tableCards.js`, `src/table/xrCameraImage.js` | — (cartas na mesa: PLANO §4 retificar, §5.2 método 1, §5.3) | — |
+| `src/table/cardScanner.js`, `src/table/tableCards.js`, `src/table/xrCameraImage.js`, `src/table/turnWatch.js`, `src/table/cardWatch.js` | — (cartas na mesa: PLANO §4 retificar, §5.2 método 1, §5.3; virar para atacar) | — |
 | `src/modes/cards.js` | `Phase0/CardCreatureSpawner.cs`, cena `Fase0` | — |
 | `src/creatures.js` | `Phase0/CardPrefabLibrary.cs`, `CreatureSpawnFx.cs` | — |
 

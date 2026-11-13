@@ -80,6 +80,25 @@ export function cardFromTitle(bbox, res) {
   return [{ x: x0, y: y0 }, { x: x0 + w, y: y0 }, { x: x0 + w, y: y0 + h }, { x: x0, y: y0 + h }];
 }
 
+/**
+ * As duas leituras são da mesma carta física? Sim se o centro de uma cai dentro do retângulo da outra
+ * (63 × 88 mm no giro dela, aumentado 15%: a linha de tipo lida como token fica quase a meia carta do
+ * centro). Cartas vizinhas não se confundem: lado a lado os centros ficam a ≥ 6,3 cm, uma acima da
+ * outra a ≥ 8,8 cm. a, b: { center: {x, y}, yaw }.
+ */
+export function sameFootprint(a, b, shrink = 1.15) {
+  const inside = (p, card) => {
+    const r = ((card.yaw ?? 0) * Math.PI) / 180;
+    const up = { x: Math.sin(r), y: Math.cos(r) };
+    const dx = p.x - card.center.x;
+    const dy = p.y - card.center.y;
+    const along = dx * up.x + dy * up.y;
+    const across = dx * up.y - dy * up.x;
+    return Math.abs(across) <= (CARD_W / 2) * shrink && Math.abs(along) <= (CARD_H / 2) * shrink;
+  };
+  return inside(a.center, b) || inside(b.center, a);
+}
+
 export class TableCards {
   constructor({ matchRadius = 0.06, moveRadius = 0.15, deadzone = 0.015, deadzoneDeg = 8, lostAfter = 6, occupied = 0.04, swapVotes = 3 } = {}) {
     Object.assign(this, { matchRadius, moveRadius, deadzone, deadzoneDeg, lostAfter, occupied, swapVotes });
@@ -111,7 +130,13 @@ export class TableCards {
         if (there) {
           const v = this.votes.get(there.id);
           const n = v?.oracleId === d.card.oracleId ? v.n + 1 : 1;
-          if (n < this.swapVotes) {
+          // Troca na hora quando a leitura nova é claramente melhor: o nome no topo da carta contra
+          // uma linha de tipo lida como token, ou um nome mais completo ("Shivan Dragon" contra só
+          // "Dragon", quando o OCR perdeu uma palavra e achou o token de mesmo nome).
+          const nameOf = (c) => String(c.name ?? '').toLowerCase();
+          const better = (there.anchor === 'type' && (d.anchor ?? 'title') === 'title')
+            || (nameOf(d.card).length > nameOf(there.card).length && nameOf(d.card).includes(nameOf(there.card)));
+          if (n < this.swapVotes && !better) {
             this.votes.set(there.id, { oracleId: d.card.oracleId, n });
             seen.add(there.id); // o lugar está ocupado e foi visto: a de antes não "some"
             continue;
@@ -121,7 +146,7 @@ export class TableCards {
           events.push({ type: 'remove', entry: there });
         }
         const e = {
-          id: this.nextId++, card: d.card, pos: { ...d.center }, yaw: d.yaw, baseYaw: d.yaw,
+          id: this.nextId++, card: d.card, anchor: d.anchor ?? 'title', pos: { ...d.center }, yaw: d.yaw, baseYaw: d.yaw,
           tapped: false, lastSeen: now, missingSince: null, missed: null,
         };
         this.entries.set(e.id, e);
@@ -141,15 +166,7 @@ export class TableCards {
         if (turned) entry.yaw = d.yaw;
         events.push({ type: 'move', entry });
       }
-      const delta = Math.abs(wrapDeg(entry.yaw - entry.baseYaw));
-      const tapped = delta >= 55 && delta <= 125;
-      if (tapped !== entry.tapped) {
-        entry.tapped = tapped;
-        events.push({ type: tapped ? 'tap' : 'untap', entry });
-      } else if (!tapped && delta > 125) {
-        // Girou de vez (passou a carta para o outro lado): esse passa a ser o "em pé" dela.
-        entry.baseYaw = entry.yaw;
-      }
+      this.#tapState(entry, events);
     }
     for (const e of this.entries.values()) {
       if (seen.has(e.id)) continue;
@@ -173,10 +190,75 @@ export class TableCards {
     return events;
   }
 
-  /** Carta (de outro nome) que já ocupa o lugar desta leitura. */
+  /** Virada (~90° para qualquer lado do giro em que entrou) ou desvirada: evento de atacar. */
+  #tapState(entry, events) {
+    const delta = Math.abs(wrapDeg(entry.yaw - entry.baseYaw));
+    const tapped = delta >= 55 && delta <= 125;
+    if (tapped !== entry.tapped) {
+      entry.tapped = tapped;
+      events.push({ type: tapped ? 'tap' : 'untap', entry });
+    } else if (!tapped && delta > 125) {
+      // Girou de vez (passou a carta para o outro lado): esse passa a ser o "em pé" dela.
+      entry.baseYaw = entry.yaw;
+    }
+  }
+
+  /**
+   * Giro medido pelo vigia (turnWatch.js), na hora, sem esperar o OCR. yaw: para onde o topo da
+   * carta aponta agora. Retorna os eventos (move, tap/untap).
+   */
+  turn(id, yaw, now) {
+    const entry = this.entries.get(id);
+    if (!entry) return [];
+    const events = [];
+    entry.lastSeen = now;
+    entry.missingSince = null;
+    entry.missed = null;
+    if (Math.abs(wrapDeg(yaw - entry.yaw)) > this.deadzoneDeg) {
+      entry.yaw = yaw;
+      events.push({ type: 'move', entry });
+    }
+    this.#tapState(entry, events);
+    return events;
+  }
+
+  /** O vigia viu a carta no lugar: ela não está sumida (mesmo que o OCR não a leia agora). */
+  seen(id, now) {
+    const e = this.entries.get(id);
+    if (!e) return;
+    e.lastSeen = now;
+    e.missingSince = null;
+    e.missed = null;
+  }
+
+  /**
+   * O vigia não acha mais a carta no lugar (tirada, ou coberta por vários segundos): conta como
+   * faltando em pé e virada; a próxima leitura a remove passado o prazo.
+   */
+  absent(id, now) {
+    const e = this.entries.get(id);
+    if (!e) return;
+    e.missed = new Set(['same', 'turned']);
+    e.missingSince ??= now;
+  }
+
+  /** Remove as cartas sumidas há mais que o prazo (sem precisar de uma leitura do OCR). */
+  expire(now) {
+    const events = [];
+    for (const e of this.entries.values()) {
+      if (e.missingSince !== null && e.missed?.has('same') && e.missed.has('turned') && now - e.missingSince >= this.lostAfter) {
+        this.entries.delete(e.id);
+        events.push({ type: 'remove', entry: e });
+      }
+    }
+    return events;
+  }
+
+  /** Carta (de outro nome) que já ocupa o lugar desta leitura (o centro de uma dentro da outra). */
   #occupant(d) {
     for (const e of this.entries.values()) {
-      if (Math.hypot(d.center.x - e.pos.x, d.center.y - e.pos.y) < this.occupied) return e;
+      if (Math.hypot(d.center.x - e.pos.x, d.center.y - e.pos.y) < this.occupied
+        || sameFootprint({ center: d.center, yaw: d.yaw }, { center: e.pos, yaw: e.yaw })) return e;
     }
     return null;
   }

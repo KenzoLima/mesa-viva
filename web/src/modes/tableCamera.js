@@ -14,8 +14,9 @@ import {
 } from '../table/cameraPose.js';
 import {
   HANDLE_OFFSET, v3, frameMatrix, makeArea, setAreaOpacity, disposeTree, makeTableRig, fitShadowCatcher,
-  summonOnTable, updateCreatures, animateAreaFade, RecognizedCreatures,
+  animateAreaFade, RecognizedCreatures,
 } from '../table/tableVisuals.js';
+import { CardWatch } from '../table/cardWatch.js';
 import { TableCards, planScans, scanOrder, coverage } from '../table/tableCards.js';
 import { TableCardScanner } from '../table/cardScanner.js';
 
@@ -28,6 +29,7 @@ const SHIFT_STRIKES = 2; // checagens seguidas para avisar (uma mão passando n�
 const SHIFT_REFRESH = 10; // segundos: renova a imagem de referência enquanto a câmera está parada
 const MIN_EDGES = 60; // com menos bordas que isso (mesa lisa e vazia) não dá para saber
 const REF_KEY = 'mesaviva.mesaRef';
+const WATCH_EVERY = 0.25; // s: o vigia de giro olha as cartas 4 vezes por segundo
 const REF_PHRASE = {
   a4: 'uma folha A4',
   letter: 'uma folha tamanho carta',
@@ -50,10 +52,9 @@ function grayOf(ctx, w, h) {
 /**
  * view: contêiner em tela cheia (recebe o vídeo e os toques).
  * ui: os mesmos controles do modo WebXR + { referenceRow, reference, corners }.
- * pickCard(): a carta que o próximo toque invoca.
  * Retorna uma função que encerra o modo.
  */
-export async function startCameraTableMode({ view, ui, catalog, resolver, pickCard, onEnd }) {
+export async function startCameraTableMode({ view, ui, catalog, resolver, onEnd }) {
   const video = document.createElement('video');
   for (const a of ['playsinline', 'muted', 'autoplay']) video.setAttribute(a, '');
   video.playsInline = true;
@@ -111,7 +112,6 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, pickCa
   let clock = 0;
   let viewW = 1;
   let viewH = 1;
-  const creatures = [];
   let pointer = null; // { id, start, mode: 'corner' | 'rotate' | 'move' | 'tap', index, offset, moved }
   // Câmera mexida
   const small = document.createElement('canvas');
@@ -151,8 +151,8 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, pickCa
     corners: () => `Ponha ${REF_PHRASE[refKey]} no centro da mesa e toque nos 4 cantos (${Math.min(clicks.length, 4)}/4)`,
     adjusting: () => 'Arraste os cantos dourados até a borda, mova ou gire a área e confirme',
     confirmed: () => (ui.recognize.checked
-      ? 'Ponha as cartas na mesa, ou toque nela para invocar a criatura escolhida'
-      : 'Toque na mesa para invocar a criatura escolhida'),
+      ? 'Ponha as cartas na mesa: cada uma vira a criatura dela. Vire a carta para atacar'
+      : 'Reconhecimento das cartas pausado'),
   };
 
   function renderStatus() {
@@ -185,7 +185,6 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, pickCa
     ui.confirm.hidden = !adjusting;
     ui.corners.hidden = state !== 'adjusting' && !(state === 'corners' && clicks.length);
     ui.recalibrate.hidden = state !== 'confirmed';
-    ui.cardSelect.hidden = state !== 'confirmed';
     ui.recognizeRow.hidden = state !== 'confirmed';
     for (const b of ui.seats) b.setAttribute('aria-pressed', String(b.dataset.seat === seat));
     renderStatus();
@@ -464,24 +463,8 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, pickCa
       return;
     }
     const hit = tableHit(p);
-    if (state === 'adjusting') {
-      if (hit) setFrame(frame.recentered(hit));
-      return;
-    }
-    if (!hit) return;
-    const card = pickCard();
-    if (!card) {
-      say('Escolha uma carta para invocar', 2.5, 'warn');
-      return;
-    }
-    const { side, creature, choice } = summonOnTable({ frame, p: hit, card, resolver, tableRoot });
-    if (side === 'outside') {
-      fade = { t: 0, mode: 'flash' };
-      say('Fora da mesa: toque dentro da área', 2.5, 'warn');
-      return;
-    }
-    creatures.push(creature);
-    say(`${card.displayName} → ${resolver.label(choice.modelId)} (${side === 'near' ? 'seu lado' : 'lado do oponente'})`, 3);
+    // As criaturas vêm das cartas reconhecidas; o toque só serve para ajustar a área.
+    if (state === 'adjusting' && hit) setFrame(frame.recentered(hit));
   }
 
   // ---------------- desenho dos cantos (2D, por cima)
@@ -520,9 +503,13 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, pickCa
   let scanner = null;
   let scans = 0;
 
+  const watch = new CardWatch(cards, recognized);
+  let watchTimer = 0;
+
   function forgetCards() {
     cards.clear();
     recognized.clear();
+    watch.clear();
     ui.scanInfo.textContent = '';
   }
 
@@ -623,7 +610,14 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, pickCa
         checkCamera();
       }
     }
-    updateCreatures(creatures, dt);
+    // Vigia das cartas já reconhecidas: virar para atacar na hora, sem esperar o OCR.
+    if (state === 'confirmed' && ui.recognize.checked && !moved && cards.entries.size) {
+      watchTimer += dt;
+      if (watchTimer >= WATCH_EVERY) {
+        watchTimer = 0;
+        watch.tick(video, VW, VH, tableToVideo, clock);
+      }
+    }
     recognized.update(dt);
     drawMarks();
     if (cal) renderer.render(scene, camera);
@@ -634,7 +628,7 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, pickCa
   refreshUi();
   // Só no `npm run dev`: deixa os testes no navegador lerem o estado (o build de produção remove).
   if (import.meta.env?.DEV) {
-    view.__mesaDebug = () => ({ state, clicks, cal, frame, moved, k, creatures: creatures.length, noise, edges: reference?.idx.length ?? 0, cards: [...cards.entries.values()], scans, lastLines: scanner?.lastLines, lastScan, videoSize: [VW, VH], smallestCardPx: frame && cal ? smallestCardPx() : null });
+    view.__mesaDebug = () => ({ state, clicks, cal, frame, moved, k, noise, creatureRot: [...recognized.byId.values()].map((c) => +(c.rotation.y * 180 / Math.PI).toFixed(0)), watchBest: [...watch.trackers.values()].map((t) => t.tracker.lastBest), edges: reference?.idx.length ?? 0, cards: [...cards.entries.values()], scans, lastLines: scanner?.lastLines, lastScan, videoSize: [VW, VH], smallestCardPx: frame && cal ? smallestCardPx() : null });
     view.__mesaShift = () => reference && imageShift(reference.img, smallGray(), SHIFT_SIZE[0], SHIFT_SIZE[1], 3, reference.idx);
   }
 
