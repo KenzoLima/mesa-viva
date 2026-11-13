@@ -16,8 +16,8 @@ import {
   makeTableRig, fitShadowCatcher, animateAreaFade, RecognizedCreatures,
 } from '../table/tableVisuals.js';
 import { CardWatch } from '../table/cardWatch.js';
-import { TableCards, planScans, scanOrder, coverage } from '../table/tableCards.js';
-import { TableCardScanner } from '../table/cardScanner.js';
+import { TableCards, planScans, scanOrder, coverage, BlockMemory } from '../table/tableCards.js';
+import { TableCardScanner, blockSignature, signatureChange } from '../table/cardScanner.js';
 import { XrCameraImage, cameraAccessAvailable, projectShot } from '../table/xrCameraImage.js';
 
 const MIN_TABLE_AREA = 0.15; // m², igual ao Unity
@@ -403,6 +403,7 @@ export async function startTableMode({ ui, catalog, resolver, onEnd }) {
   let watchTimer = 0;
 
   function forgetCards() {
+    memory?.clear();
     cards.clear();
     recognized.clear();
     watch.clear();
@@ -410,6 +411,7 @@ export async function startTableMode({ ui, catalog, resolver, onEnd }) {
   }
 
   let jobIndex = 0;
+  const memory = new BlockMemory(); // blocos parados não passam de novo pelo OCR
 
   async function scanLoop() {
     while (!ended && camImage) {
@@ -442,8 +444,15 @@ export async function startTableMode({ ui, catalog, resolver, onEnd }) {
         }
         const job = order[jobIndex++ % order.length];
         const src = scanner.gray(shot.canvas, shot.w, shot.h);
+        const sig = blockSignature(src, job, toImage);
+        if (!memory.needsRead(job, sig, clockTime, signatureChange)) {
+          await new Promise((r) => setTimeout(r, 150));
+          continue; // nada mudou nesse bloco desde a última leitura
+        }
         if (import.meta.env?.DEV) window.__xrTableDebug = { src, job, toImage, shot, scanner, cards, watch };
-        const detections = await scanner.scan(src, job, toImage);
+        const known = [...cards.entries.values()].map((e) => ({ center: e.pos, yaw: e.yaw }));
+        const detections = await scanner.scan(src, job, toImage, known);
+        memory.remember(job, sig, clockTime, (scanner.last?.unresolved ?? 0) > 0);
         if (ended || sm.state !== State.Confirmed || !ui.recognize.checked || shot.epoch !== epoch) continue;
         // Só conta como sumida a carta que ESTE bloco, nesta foto, teria lido.
         const couldRead = (pos, e) => coverage(job, pos, e, (q) => !lost.value && visibleInShot(q));

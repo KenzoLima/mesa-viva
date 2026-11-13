@@ -17,8 +17,8 @@ import {
   animateAreaFade, RecognizedCreatures,
 } from '../table/tableVisuals.js';
 import { CardWatch } from '../table/cardWatch.js';
-import { TableCards, planScans, scanOrder, coverage } from '../table/tableCards.js';
-import { TableCardScanner } from '../table/cardScanner.js';
+import { TableCards, planScans, scanOrder, coverage, BlockMemory } from '../table/tableCards.js';
+import { TableCardScanner, blockSignature, signatureChange } from '../table/cardScanner.js';
 
 const GOLD = '#d4af37';
 const CORNER_GRAB = 28; // px na tela para agarrar um canto
@@ -507,6 +507,7 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, onEnd 
   let watchTimer = 0;
 
   function forgetCards() {
+    memory?.clear();
     cards.clear();
     recognized.clear();
     watch.clear();
@@ -527,6 +528,9 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, onEnd 
 
   let order = [];
   let jobIndex = 0;
+  const memory = new BlockMemory(); // blocos parados não passam de novo pelo OCR
+  let grayCache = null;
+  let skipped = 0;
   let planFor = '';
   let lastScan = null; // resumo da última leitura terminada (depuração)
   let smallHint = '';
@@ -566,7 +570,7 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, onEnd 
           jobIndex = 0;
           planFor = key;
           smallHint = smallestCardPx() < 140
-            ? ' · longe da câmera as cartas ficam pequenas demais para ler: suba ou aproxime a câmera (ou use 4K)'
+            ? ` · longe da câmera as cartas ficam pequenas demais para ler: ${VW >= 3000 ? 'aproxime a câmera ou aponte-a mais de cima' : 'aproxime a câmera ou use uma câmera 4K'}`
             : '';
         }
         if (!order.length) {
@@ -575,7 +579,19 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, onEnd 
           continue;
         }
         const job = order[jobIndex++ % order.length];
-        const detections = await scanner.scan(scanner.gray(video, VW, VH), job, tableToVideo);
+        // Cinza do quadro reaproveitado por meio segundo enquanto os blocos parados são pulados.
+        if (!grayCache || clock - grayCache.at > 0.5) grayCache = { src: scanner.gray(video, VW, VH), at: clock };
+        const src = grayCache.src;
+        const sig = blockSignature(src, job, tableToVideo);
+        if (!memory.needsRead(job, sig, clock, signatureChange)) {
+          skipped++;
+          await new Promise((r) => setTimeout(r, 60));
+          continue; // nada mudou nesse bloco desde a última leitura
+        }
+        const known = [...cards.entries.values()].map((e) => ({ center: e.pos, yaw: e.yaw }));
+        const detections = await scanner.scan(src, job, tableToVideo, known);
+        memory.remember(job, sig, clock, (scanner.last?.unresolved ?? 0) > 0);
+        grayCache = null; // o OCR demorou: a próxima leitura usa um quadro novo
         scans++;
         lastScan = scanner.last;
         // Recalibrou durante a leitura: a posição calculada já não vale.
@@ -628,7 +644,7 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, onEnd 
   refreshUi();
   // Só no `npm run dev`: deixa os testes no navegador lerem o estado (o build de produção remove).
   if (import.meta.env?.DEV) {
-    view.__mesaDebug = () => ({ state, clicks, cal, frame, moved, k, noise, creatureRot: [...recognized.byId.values()].map((c) => +(c.rotation.y * 180 / Math.PI).toFixed(0)), watchBest: [...watch.trackers.values()].map((t) => t.tracker.lastBest), edges: reference?.idx.length ?? 0, cards: [...cards.entries.values()], scans, lastLines: scanner?.lastLines, lastScan, videoSize: [VW, VH], smallestCardPx: frame && cal ? smallestCardPx() : null });
+    view.__mesaDebug = () => ({ state, clicks, cal, frame, moved, k, noise, creatureRot: [...recognized.byId.values()].map((c) => +(c.rotation.y * 180 / Math.PI).toFixed(0)), watchBest: [...watch.trackers.values()].map((t) => t.tracker.lastBest), edges: reference?.idx.length ?? 0, cards: [...cards.entries.values()], scans, lastLines: scanner?.lastLines, lastScan, skipped, videoSize: [VW, VH], smallestCardPx: frame && cal ? smallestCardPx() : null });
     view.__mesaShift = () => reference && imageShift(reference.img, smallGray(), SHIFT_SIZE[0], SHIFT_SIZE[1], 3, reference.idx);
   }
 
