@@ -463,20 +463,24 @@ export function cardShapeOk(q) {
 export class CardTracker {
   /**
    * frame: quadro cinza (GraySampler/grayFrame).
-   * start: { quad } = cantos achados pelo cardDetector, ou { rect } = estimativa pelo nome; em pixels do VÍDEO.
+   * start: { quad } = cantos achados pelo cardDetector, ou { rect } = estimativa pelo nome, ou
+   * { quad, rough: true } = estimativa pelo nome já como cantos (carta lida num quadro girado);
+   * em pixels do VÍDEO.
    */
-  constructor(frame, { quad: found, rect }) {
+  constructor(frame, { quad: found, rect, rough = false }) {
     const s = frame.scale;
     let quad;
-    if (found) {
+    if (found && !rough) {
       quad = found.map((p) => ({ x: p.x * s, y: p.y * s }));
     } else {
-      quad = [
-        { x: rect.x * s, y: rect.y * s },
-        { x: (rect.x + rect.w) * s, y: rect.y * s },
-        { x: (rect.x + rect.w) * s, y: (rect.y + rect.h) * s },
-        { x: rect.x * s, y: (rect.y + rect.h) * s },
-      ];
+      quad = found
+        ? found.map((p) => ({ x: p.x * s, y: p.y * s }))
+        : [
+          { x: rect.x * s, y: rect.y * s },
+          { x: (rect.x + rect.w) * s, y: rect.y * s },
+          { x: (rect.x + rect.w) * s, y: (rect.y + rect.h) * s },
+          { x: rect.x * s, y: (rect.y + rect.h) * s },
+        ];
       // A estimativa pelo nome pode errar bastante: primeiro uma busca larga, depois uma fina.
       const wide = refineQuad(frame, quad, 0.18);
       if (cardShapeOk(wide)) quad = wide;

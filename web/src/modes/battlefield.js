@@ -4,6 +4,8 @@
 // amarelo e faz a criatura surgir em pé sobre ela.
 // Entre uma leitura e outra, o CardTracker segue a carta quadro a quadro (fluxo óptico),
 // então o contorno e a criatura ficam presos nela mesmo girando ou aproximando a câmera.
+// Cada leitura usa o quadro girado (0°, 180°, às vezes 90°/270°): lê também a carta de ponta-cabeça
+// e a carta virada de lado. Virar a carta 90° em relação a como ela surgiu faz a criatura atacar.
 
 import * as THREE from 'three';
 import { getOcrReaders } from '../recognition/ocr.js';
@@ -11,14 +13,20 @@ import { makeCreature, addLights } from '../creatures.js';
 import { NameMatcher, findCardsInLine, mergeRowLines } from '../recognition/nameMatcher.js';
 import { GraySampler, CardTracker, cardRectFromTitle, grayFrame } from '../recognition/cardTracker.js';
 import { detectCardQuad } from '../recognition/cardDetector.js';
+import { rotationFor, fromRotated, drawRotated } from '../recognition/orientation.js';
+import { cardPose, cardYaw, TapWatcher, AY, AZ } from '../recognition/cardTurn.js';
 
-const LOST_AFTER = 5; // segundos sem ver a carta até a criatura sumir
+// Segundos sem ver a carta até a criatura morrer (a carta saiu da mesa). Menos que isso pega a
+// câmera tremida ou a mão passando na frente: o OCR leva 1-3 s para reencontrar a carta.
+const LOST_AFTER = 3.5;
 const MAX_SIDE = 1600; // resolução do quadro enviado ao OCR
 const OUTLINE = '#ffd23f'; // amarelo do contorno da carta reconhecida
 const PULSE = 0.7; // segundos do "flash" do contorno quando a carta é reconhecida
 const CREATURE_SIZE = 0.62; // altura da criatura em relação à largura da carta (na tela)
 const FEET_AT = 0.5; // onde ficam os pés: 0 = topo da carta, 1 = base (no centro da carta)
 const DETECT_WIDTH = 640; // resolução usada para achar o contorno da carta
+const STRIKE = '#ff5a2a'; // cor do contorno no ataque (carta virada)
+const STRIKE_FLASH = 0.5; // segundos do flash do ataque
 
 function ocrLines(data) {
   if (data.lines?.length) return data.lines;
@@ -64,41 +72,7 @@ const outranks = (a, b) => {
   return a.id < b.id;
 };
 
-const AX = new THREE.Vector3();
-const AY = new THREE.Vector3();
-const AZ = new THREE.Vector3();
 const BASIS = new THREE.Matrix4();
-
-/**
- * Orientação 3D da carta a partir do contorno na tela (q = [topo-esq, topo-dir, base-dir, base-esq]).
- * Resolve a pose de um retângulo 63x88 em projeção quase ortográfica; a perspectiva (lado mais
- * curto = mais longe) decide para que lado ela inclina. Preenche AX (direita da carta),
- * AY (normal da carta) e AZ (direção do topo da carta).
- */
-function cardPose(q) {
-  const mid = (p1, p2) => ({ x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 });
-  const len = (p1, p2) => Math.hypot(p2.x - p1.x, p2.y - p1.y);
-  // Eixos da carta na cena (y para cima): u = esquerda→direita, v = topo→base.
-  const l = mid(q[0], q[3]), r = mid(q[1], q[2]), t = mid(q[0], q[1]), b = mid(q[3], q[2]);
-  const u = { x: (r.x - l.x) / 63, y: -(r.y - l.y) / 63 };
-  const v = { x: (b.x - t.x) / 88, y: -(b.y - t.y) / 88 };
-  const uu = u.x * u.x + u.y * u.y, vv = v.x * v.x + v.y * v.y, uv = u.x * v.x + u.y * v.y;
-  const sum = uu + vv;
-  const s2 = (sum + Math.sqrt(Math.max(0, sum * sum - 4 * (uu * vv - uv * uv)))) / 2 || 1;
-  let vz = Math.sqrt(Math.max(0, 1 - vv / s2));
-  let uz = Math.sqrt(Math.max(0, 1 - uu / s2));
-  // A borda mais perto da câmera aparece maior.
-  if (len(q[3], q[2]) < len(q[0], q[1])) vz = -vz;
-  if (Math.abs(vz) > 1e-3) uz = -uv / s2 / vz;
-  else if (len(q[1], q[2]) < len(q[0], q[3])) uz = -uz;
-  const s = Math.sqrt(s2);
-  AX.set(u.x / s, u.y / s, uz).normalize(); // direita da carta
-  AZ.set(-v.x / s, -v.y / s, -vz).normalize(); // topo da carta = para onde a criatura olha
-  AY.crossVectors(AZ, AX).normalize(); // normal da carta = "para cima" da criatura
-  if (AY.z < 0) AY.negate();
-  AX.crossVectors(AY, AZ).normalize();
-  return new THREE.Quaternion().setFromRotationMatrix(BASIS.makeBasis(AX, AY, AZ));
-}
 
 const UP = new THREE.Vector3();
 const FWD = new THREE.Vector3();
@@ -201,7 +175,10 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
     const feet = onCard(q, 0.5, FEET_AT);
     // Largura da carta na altura dos pés (na perspectiva, a parte de trás aparece menor).
     const width = Math.hypot(onCard(q, 1, FEET_AT).x - onCard(q, 0, FEET_AT).x, onCard(q, 1, FEET_AT).y - onCard(q, 0, FEET_AT).y);
-    return { x: feet.x, y: feet.y, size: width * CREATURE_SIZE, bottom: onCard(q, 0.5, 1), quad: q, rot: creaturePose(q) };
+    // Nome embaixo do lado mais baixo NA TELA (na carta de ponta-cabeça, a base da carta fica em cima).
+    const sides = [onCard(q, 0.5, 0), onCard(q, 1, 0.5), onCard(q, 0.5, 1), onCard(q, 0, 0.5)];
+    const bottom = sides.reduce((lo, p) => (p.y > lo.y ? p : lo));
+    return { x: feet.x, y: feet.y, size: width * CREATURE_SIZE, bottom, quad: q, rot: creaturePose(q) };
   };
   const sampler = new GraySampler();
 
@@ -225,12 +202,15 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
   }
 
   const detectSampler = document.createElement('canvas');
-  const detectCtx = detectSampler.getContext('2d', { willReadFrequently: true });
+  let readerCount = 0;
   async function ocrLoop(reader) {
     // Canvas próprios de cada leitor: os dois rodam ao mesmo tempo.
     const grab = document.createElement('canvas');
     const ocrCanvas = document.createElement('canvas');
     const ocrCtx = ocrCanvas.getContext('2d');
+    const ocrTurned = document.createElement('canvas');
+    // Leitores fora de fase: enquanto um lê o quadro em pé, o outro lê de ponta-cabeça.
+    let pass = readerCount++;
     while (running) {
       if (!video.videoWidth) {
         await new Promise((r) => setTimeout(r, 200));
@@ -254,17 +234,23 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
         e.tracker.quadVideo().forEach((p, i) => (i ? ocrCtx.lineTo(p.x * k, p.y * k) : ocrCtx.moveTo(p.x * k, p.y * k)));
         ocrCtx.fill();
       }
+      // Giro desta leitura. Com carta perdida (a mão passou na frente ao virá-la), lê de lado mais vezes.
+      const lost = [...onField.values()].some((e) => !e.tracker.ok);
+      const rot = rotationFor(pass++, lost);
+      if (rot) drawRotated(ocrCanvas, rot, ocrTurned);
+      /** Ponto do quadro girado (pixels do vídeo) de volta para o vídeo. */
+      const unturn = (p) => fromRotated(p, rot, video.videoWidth, video.videoHeight);
       let detect = null; // quadro maior, só gerado se o OCR achar alguma carta
       let data;
       try {
-        ({ data } = await reader.worker.recognize(ocrCanvas, {}, { blocks: true, text: true }));
+        ({ data } = await reader.worker.recognize(rot ? ocrTurned : ocrCanvas, {}, { blocks: true, text: true }));
       } catch (err) {
         console.warn('OCR falhou neste quadro', err);
         continue;
       }
       if (!running) break;
 
-      if (import.meta.env.DEV) window.__bfOcr = { psm: reader.psm, lines: ocrLines(data).map((l) => `${l.confidence | 0} ${l.text.trim()}`), misses };
+      if (import.meta.env.DEV) window.__bfOcr = { psm: reader.psm, rot, lines: ocrLines(data).map((l) => `${l.confidence | 0} ${l.text.trim()}`), misses };
       const found = [];
       // O modo esparso quebra uma linha em pedaços; junta os da mesma altura antes de procurar nomes.
       for (const line of mergeRowLines(ocrLines(data))) {
@@ -274,9 +260,9 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
       }
       if (import.meta.env.DEV) window.__bfOcr.found = found.map((m) => `${m.anchor} ${m.card.name} (${m.text})`);
       for (const m of found) {
-        // Caixa SÓ das palavras do nome (ou da linha de tipo do token), em pixels do grab.
+        // Caixa SÓ das palavras do nome (ou da linha de tipo do token), em pixels do grab GIRADO.
         const { x0, y0, x1, y1 } = m.bbox;
-        const center = { x: (x0 + x1) / 2 / k, y: (y0 + y1) / 2 / k };
+        const center = unturn({ x: (x0 + x1) / 2 / k, y: (y0 + y1) / 2 / k });
         // Texto impresso dentro de OUTRA carta já presa (regras, citação): não é carta nova.
         if ([...onField.values()].some((e) => e.card.oracleId !== m.card.oracleId && e.tracker.ok
           && insideScaled(e.tracker.quadVideo(), center, 0.95))) continue;
@@ -286,18 +272,18 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
           continue;
         }
         if (!detect) {
+          // Quadro de detecção girado igual ao do OCR: o nome fica em pé e o cardDetector acha a carta
+          // normalmente. Os cantos voltam para o vídeo na ordem da carta (topo da carta primeiro).
           const ds = DETECT_WIDTH / video.videoWidth;
-          detectSampler.width = DETECT_WIDTH;
-          detectSampler.height = Math.round(video.videoHeight * ds);
-          detectCtx.drawImage(grab, 0, 0, detectSampler.width, detectSampler.height);
-          detect = grayFrame(detectCtx.getImageData(0, 0, detectSampler.width, detectSampler.height).data,
+          const ctx = drawRotated(grab, rot, detectSampler, ds / k);
+          detect = grayFrame(ctx.getImageData(0, 0, detectSampler.width, detectSampler.height).data,
             detectSampler.width, detectSampler.height, ds);
         }
         const f = detect.scale / k; // pixels do grab -> pixels do quadro de detecção
         const quad = detectCardQuad(detect, { x0: x0 * f, y0: y0 * f, x1: x1 * f, y1: y1 * f }, { anchor: m.anchor });
         if (quad) {
           misses.delete(m.card.oracleId);
-          const vq = quad.map((p) => ({ x: p.x / detect.scale, y: p.y / detect.scale }));
+          const vq = quad.map((p) => unturn({ x: p.x / detect.scale, y: p.y / detect.scale }));
           // Uma criatura por carta FÍSICA: se o contorno cai numa carta já presa, é a mesma carta.
           const other = [...onField.values()].find((e) => e !== entry && e.tracker.ok && sameSpot(e.tracker.quadVideo(), vq));
           if (other) {
@@ -325,7 +311,9 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
         const trusty = m.anchor === 'title' && m.strict && !m.keyword && m.score >= 0.95
           && m.text.replace(/[^\p{L}]/gu, '').length >= 6;
         if (n >= 2 && trusty) {
-          summon(m.card, { rect: cardRectFromTitle({ x0: x0 / k, y0: y0 / k, x1: x1 / k, y1: y1 / k }) }, snapshot, entry);
+          const r = cardRectFromTitle({ x0: x0 / k, y0: y0 / k, x1: x1 / k, y1: y1 / k });
+          const corners = [{ x: r.x, y: r.y }, { x: r.x + r.w, y: r.y }, { x: r.x + r.w, y: r.y + r.h }, { x: r.x, y: r.y + r.h }];
+          summon(m.card, rot ? { quad: corners.map(unturn), rough: true } : { rect: r }, snapshot, entry);
         }
       }
       refreshStatus();
@@ -337,6 +325,19 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
     e.label.remove();
     e.spinner?.remove();
     onField.delete(e.id);
+  }
+
+  // Criaturas morrendo: já saíram do campo (a carta pode voltar e invocar outra), mas continuam na
+  // cena até a animação de morte acabar.
+  const dying = new Set();
+
+  /** A carta saiu da mesa: a criatura morre no último lugar onde a carta estava. */
+  function kill(e) {
+    dismiss(e);
+    if (e.creature.userData.loading) return; // ainda nem apareceu
+    e.creature.userData.die();
+    scene.add(e.creature);
+    dying.add(e.creature);
   }
 
   function summon(card, start, snapshot, entry) {
@@ -360,7 +361,10 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
       spinner.setAttribute('role', 'status');
       spinner.setAttribute('aria-label', `Carregando ${card.displayName}`);
       labels.append(label, spinner);
-      entry = { id: nextId++, creature, label, spinner, card, place: p, quad: p.quad, seenAt: elapsed };
+      // O giro de agora é a referência: virar a carta 90° a partir daqui faz a criatura atacar.
+      const taps = new TapWatcher();
+      taps.update(cardYaw(p.quad), 0);
+      entry = { id: nextId++, creature, label, spinner, card, place: p, quad: p.quad, seenAt: elapsed, taps };
       onField.set(entry.id, entry);
     }
     entry.tracker = tracker;
@@ -371,15 +375,18 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
   /** Contorno amarelo da carta: brilha forte ao ser reconhecida e fica fixo enquanto a vê. */
   function drawOutline(e) {
     const age = elapsed - (e.recognizedAt ?? -99);
-    const pulse = age < PULSE ? 1 - age / PULSE : 0;
+    const strikeAge = elapsed - (e.strikeAt ?? -99);
+    const strike = strikeAge < STRIKE_FLASH ? 1 - strikeAge / STRIKE_FLASH : 0;
+    const pulse = Math.max(age < PULSE ? 1 - age / PULSE : 0, strike);
+    const color = strike ? STRIKE : OUTLINE;
     const visible = e.tracker.ok || elapsed - e.lastSeen < 0.4;
     if (!visible && !pulse) return;
     const q = e.quad;
     octx.save();
     octx.globalAlpha = e.tracker.ok ? 1 : 0.4;
-    octx.strokeStyle = OUTLINE;
+    octx.strokeStyle = color;
     octx.lineJoin = 'round';
-    octx.shadowColor = OUTLINE;
+    octx.shadowColor = color;
     octx.shadowBlur = 10 + 20 * pulse;
     octx.lineWidth = 3 + 7 * pulse;
     octx.beginPath();
@@ -387,7 +394,7 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
     octx.closePath();
     octx.stroke();
     if (pulse) {
-      octx.fillStyle = OUTLINE;
+      octx.fillStyle = color;
       octx.globalAlpha = 0.18 * pulse;
       octx.fill();
     }
@@ -414,13 +421,20 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
         e.lastSeen = elapsed;
         e.place = placement(e.tracker.quadVideo());
         e.quad = e.place.quad;
+        // Carta virada 90° em relação a como surgiu: a criatura ataca com o golpe mais forte.
+        if (e.taps.update(cardYaw(e.quad), dt) && e.creature.userData.attack()) e.strikeAt = elapsed;
       }
       // Duas entradas presas na mesma carta física (o quadro do OCR é de 1-3 s atrás, ou uma linha
       // de tipo/regras lida como nome): uma carta só tem uma criatura. Fica a da carta inteira.
       const twin = e.tracker.ok && [...onField.values()].find((o) => o !== e && o.tracker.ok
         && sameSpot(o.tracker.quadVideo(), e.tracker.quadVideo(), 0.8) && outranks(o, e));
-      if (twin || elapsed - e.lastSeen > LOST_AFTER) {
-        dismiss(e);
+      if (twin) {
+        dismiss(e); // cópia da mesma carta física: some sem morrer
+        refreshStatus();
+        continue;
+      }
+      if (elapsed - e.lastSeen > LOST_AFTER) {
+        kill(e);
         refreshStatus();
         continue;
       }
@@ -448,6 +462,13 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
           e.spinner.remove();
           e.spinner = null;
         }
+      }
+    }
+    for (const c of dying) {
+      c.userData.update(dt);
+      if (c.userData.gone) {
+        scene.remove(c);
+        dying.delete(c);
       }
     }
     renderer.render(scene, camera);

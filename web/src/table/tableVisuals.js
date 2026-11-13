@@ -208,6 +208,7 @@ export class RecognizedCreatures {
     this.resolver = resolver;
     this.onEvent = onEvent;
     this.byId = new Map();
+    this.dying = new Set(); // já saíram da mesa; somem quando a animação de morte acaba
   }
 
   apply(events) {
@@ -239,8 +240,14 @@ export class RecognizedCreatures {
       } else if (type === 'remove') {
         const c = this.byId.get(entry.id);
         if (c) {
-          this.tableRoot.remove(c);
           this.byId.delete(entry.id);
+          // A criatura morre (clipe de morte do modelo, ou tomba) e só então sai da cena.
+          if (c.userData.die && !c.userData.loading) {
+            c.userData.die();
+            this.dying.add(c);
+          } else {
+            this.tableRoot.remove(c);
+          }
           this.onEvent(`${name} saiu da mesa`);
         }
       }
@@ -273,11 +280,19 @@ export class RecognizedCreatures {
       }
     }
     updateCreatures(this.byId.values(), dt);
+    for (const c of this.dying) {
+      c.userData.update(dt);
+      if (c.userData.gone) {
+        this.tableRoot.remove(c);
+        this.dying.delete(c);
+      }
+    }
   }
 
   clear() {
-    for (const c of this.byId.values()) this.tableRoot.remove(c);
+    for (const c of [...this.byId.values(), ...this.dying]) this.tableRoot.remove(c);
     this.byId.clear();
+    this.dying.clear();
   }
 
   get size() {
