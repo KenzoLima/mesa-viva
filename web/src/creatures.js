@@ -125,9 +125,12 @@ function fitHeight(obj, height) {
 
 /**
  * Cria a criatura. `height` = altura em unidades da cena (MindAR: largura da carta = 1; WebXR: metros).
- * Retorna um Group com userData.update(dt) e userData.spawn().
+ * Retorna um Group com userData.update(dt), userData.spawn() e userData.loading (true enquanto o
+ * modelo 3D está sendo baixado).
+ * waitForModel: não mostra o boneco provisório enquanto carrega; a criatura surge (com o "pop")
+ * só quando o modelo chega. Sem modelo para essa criatura, surge o boneco provisório.
  */
-export function makeCreature(choice, { height = 0.6 } = {}) {
+export function makeCreature(choice, { height = 0.6, waitForModel = false } = {}) {
   const root = new THREE.Group();
   const pivot = new THREE.Group(); // anima escala/balanço sem mexer no root (que o app posiciona)
   root.add(pivot);
@@ -137,8 +140,12 @@ export function makeCreature(choice, { height = 0.6 } = {}) {
   fitHeight(body, finalHeight);
   pivot.add(body);
   let mixer = null;
+  root.userData.loading = true;
+  if (waitForModel) pivot.visible = false;
 
   loadGlb(choice.modelId).then((gltf) => {
+    root.userData.loading = false;
+    pivot.visible = true;
     if (!gltf) return;
     const model = cloneSkinned(gltf.scene);
     fitHeight(model, finalHeight);
@@ -157,7 +164,8 @@ export function makeCreature(choice, { height = 0.6 } = {}) {
   root.userData.spawn = () => { spawnT = 0; };
   root.userData.update = (dt) => {
     t += dt;
-    if (spawnT < 1) spawnT = Math.min(1, spawnT + dt / 0.6);
+    // Esperando o modelo: segura o "pop" para ele acontecer quando a criatura aparecer.
+    if (spawnT < 1 && !(waitForModel && root.userData.loading)) spawnT = Math.min(1, spawnT + dt / 0.6);
     // "Pop" com leve exagero no fim (easeOutBack).
     const k = 1.70158;
     const e = 1 + (k + 1) * (spawnT - 1) ** 3 + k * (spawnT - 1) ** 2;

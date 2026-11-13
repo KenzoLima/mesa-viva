@@ -1,9 +1,16 @@
 import { CardCatalog } from './data/catalog.js';
 import { ModelResolver } from './data/modelResolver.js';
 import { isTableModeSupported } from './modes/table.js';
+import version from '../version.json';
 
 const $ = (id) => document.getElementById(id);
 const BASE = import.meta.env.BASE_URL;
+
+// Versão do app: sobe 0.01 a cada commit ou merge na main (tools/hooks/bump-version.sh).
+const appVersion = document.createElement('div');
+appVersion.className = 'app-version';
+appVersion.textContent = `v${(version.build / 100).toFixed(2)}`;
+document.body.append(appVersion);
 
 // ---------- Navegação entre as telas do menu (antes do catálogo, para já responder ao toque) ----------
 function showScreen(name) {
@@ -25,6 +32,9 @@ function loadOverrides() {
     return {};
   }
 }
+
+// O leitor de cartas (OCR) demora para baixar e iniciar: começa já, enquanto o menu está na tela.
+import('./recognition/ocr.js').then((m) => m.warmOcr()).catch((err) => console.warn('OCR não pré-carregou', err));
 
 const [catalog, resolver] = await Promise.all([
   CardCatalog.load(`${BASE}data/`),

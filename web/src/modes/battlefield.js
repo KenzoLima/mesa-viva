@@ -6,7 +6,7 @@
 // então o contorno e a criatura ficam presos nela mesmo girando ou aproximando a câmera.
 
 import * as THREE from 'three';
-import { createWorker } from 'tesseract.js';
+import { getOcrReaders } from '../recognition/ocr.js';
 import { makeCreature, addLights } from '../creatures.js';
 import { NameMatcher, findCardsInLine } from '../recognition/nameMatcher.js';
 import { GraySampler, CardTracker, cardRectFromTitle, grayFrame } from '../recognition/cardTracker.js';
@@ -150,11 +150,13 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
 
   onStatus('Preparando o reconhecimento de cartas…');
   const matcher = new NameMatcher(catalog);
-  const worker = await createWorker(['eng', 'por'], 1);
-  // Alterna o modo do OCR a cada leitura: o automático (3) lê melhor o nome em versalete dos tokens;
-  // o de texto esparso (11) lê melhor o nome das cartas normais e não junta texto de cartas vizinhas.
-  const PSM = ['3', '11'];
-  let pass = 0;
+  let running = true;
+  // Leitores de OCR já aquecidos pelo menu; o segundo (outro modo de leitura) entra quando ficar pronto
+  // e roda em paralelo, dobrando a frequência de leituras.
+  // (Só começa a ler depois que tudo abaixo estiver montado.)
+  const extraReaders = [];
+  let startReader = (r) => extraReaders.push(r);
+  const firstReader = await getOcrReaders((r) => startReader(r));
 
   /** Converte pontos do vídeo para a tela (o vídeo usa object-fit: cover). */
   const toScreen = (pts) => {
@@ -186,7 +188,6 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
   if (import.meta.env.DEV) window.__battlefield = onField; // inspeção no navegador durante o desenvolvimento
   const misses = new Map(); // oracleId -> leituras seguidas em que o contorno não foi achado
   let nextId = 1;
-  let running = true;
   let elapsed = 0;
 
   /**
@@ -201,12 +202,13 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
     return same.filter((e) => !e.tracker.ok).sort((a, b) => b.lastSeen - a.lastSeen)[0] ?? null;
   }
 
-  const grab = document.createElement('canvas');
-  const ocrCanvas = document.createElement('canvas');
-  const ocrCtx = ocrCanvas.getContext('2d');
   const detectSampler = document.createElement('canvas');
   const detectCtx = detectSampler.getContext('2d', { willReadFrequently: true });
-  async function ocrLoop() {
+  async function ocrLoop(reader) {
+    // Canvas próprios de cada leitor: os dois rodam ao mesmo tempo.
+    const grab = document.createElement('canvas');
+    const ocrCanvas = document.createElement('canvas');
+    const ocrCtx = ocrCanvas.getContext('2d');
     while (running) {
       if (!video.videoWidth) {
         await new Promise((r) => setTimeout(r, 200));
@@ -233,15 +235,14 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
       let detect = null; // quadro maior, só gerado se o OCR achar alguma carta
       let data;
       try {
-        await worker.setParameters({ tessedit_pageseg_mode: PSM[pass++ % PSM.length] });
-        ({ data } = await worker.recognize(ocrCanvas, {}, { blocks: true, text: true }));
+        ({ data } = await reader.worker.recognize(ocrCanvas, {}, { blocks: true, text: true }));
       } catch (err) {
         console.warn('OCR falhou neste quadro', err);
         continue;
       }
       if (!running) break;
 
-      if (import.meta.env.DEV) window.__bfOcr = { psm: PSM[(pass - 1) % PSM.length], lines: ocrLines(data).map((l) => `${l.confidence | 0} ${l.text.trim()}`), misses };
+      if (import.meta.env.DEV) window.__bfOcr = { psm: reader.psm, lines: ocrLines(data).map((l) => `${l.confidence | 0} ${l.text.trim()}`), misses };
       const found = [];
       for (const line of ocrLines(data)) {
         // A confiança da linha cai quando o OCR junta texto de duas cartas; o filtro fino é por palavra.
@@ -282,7 +283,7 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
         const n = (misses.get(m.card.oracleId) ?? 0) + 1;
         misses.set(m.card.oracleId, n);
         const trusty = m.anchor === 'title' && m.strict && m.score >= 0.95 && m.text.replace(/[^\p{L}]/gu, '').length >= 6;
-        if (n >= 3 && trusty) {
+        if (n >= 2 && trusty) {
           summon(m.card, { rect: cardRectFromTitle({ x0: x0 / k, y0: y0 / k, x1: x1 / k, y1: y1 / k }) }, snapshot, entry);
         }
       }
@@ -295,7 +296,7 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
     if (!tracker.valid) return;
     if (!entry) {
       const choice = resolver.resolve(card);
-      const creature = makeCreature(choice, { height: 1 });
+      const creature = makeCreature(choice, { height: 1, waitForModel: true });
       const p = placement(tracker.quadVideo());
       creature.quaternion.copy(p.rot); // em pé sobre a carta, de costas para quem a colocou
       creature.scale.setScalar(p.size);
@@ -305,8 +306,13 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
       const label = document.createElement('div');
       label.className = 'bf-label';
       label.textContent = `${card.displayName} · ${resolver.label(choice.modelId)}`;
-      labels.append(label);
-      entry = { id: nextId++, creature, label, card, place: p, quad: p.quad, seenAt: elapsed };
+      // Círculo girando sobre a carta enquanto o modelo 3D da criatura baixa.
+      const spinner = document.createElement('div');
+      spinner.className = 'bf-loading';
+      spinner.setAttribute('role', 'status');
+      spinner.setAttribute('aria-label', `Carregando ${card.displayName}`);
+      labels.append(label, spinner);
+      entry = { id: nextId++, creature, label, spinner, card, place: p, quad: p.quad, seenAt: elapsed };
       onField.set(entry.id, entry);
     }
     entry.tracker = tracker;
@@ -368,6 +374,7 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
       if (twin || elapsed - e.lastSeen > LOST_AFTER) {
         scene.remove(e.creature);
         e.label.remove();
+        e.spinner?.remove();
         onField.delete(id);
         refreshStatus();
         continue;
@@ -383,19 +390,35 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
       c.scale.setScalar(c.scale.x + (p.size - c.scale.x) * (1 - Math.exp(-dt * 4)));
       c.userData.update(dt);
       e.label.style.transform = `translate(${p.bottom.x}px, ${p.bottom.y + 8}px) translateX(-50%)`;
+      if (e.spinner) {
+        if (c.userData.loading) {
+          // No meio da carta, do tamanho de ~1/3 da largura dela.
+          const mid = onCard(p.quad, 0.5, 0.5);
+          const size = Math.max(28, Math.min(80, p.size * 0.55));
+          e.spinner.style.width = e.spinner.style.height = `${size}px`;
+          e.spinner.style.margin = `${-size / 2}px 0 0 ${-size / 2}px`;
+          e.spinner.style.borderWidth = `${Math.max(3, size / 11)}px`;
+          e.spinner.style.translate = `${mid.x}px ${mid.y}px`;
+        } else {
+          e.spinner.remove();
+          e.spinner = null;
+        }
+      }
     }
     renderer.render(scene, camera);
   });
 
   refreshStatus();
-  ocrLoop();
+  startReader = (r) => { if (running) ocrLoop(r); };
+  [firstReader, ...extraReaders].forEach(startReader);
 
   return () => {
     running = false;
     renderer.setAnimationLoop(null);
     window.removeEventListener('resize', resize);
     stream.getTracks().forEach((t) => t.stop());
-    worker.terminate();
+    // Os leitores de OCR ficam vivos: voltar ao campo de batalha é instantâneo.
+    for (const e of onField.values()) e.spinner?.remove();
     renderer.dispose();
     video.remove();
     labels.remove();
