@@ -142,6 +142,9 @@ function tableUi(overlay) {
     referenceRow: $('xr-reference-row'),
     reference: $('xr-reference'),
     corners: $('xr-corners'),
+    recognizeRow: $('xr-recognize-row'),
+    recognize: $('xr-recognize'),
+    scanInfo: $('xr-scan'),
   };
 }
 
@@ -155,6 +158,7 @@ async function startXrTable() {
   try {
     await startTableMode({
       ui: tableUi(overlay),
+      catalog,
       resolver,
       pickCard: () => catalog.get(select.value),
       onEnd: () => {
@@ -192,6 +196,7 @@ async function startCameraTable() {
     leaveCameraTable = await startCameraTableMode({
       view,
       ui: tableUi(overlay),
+      catalog,
       resolver,
       pickCard: () => catalog.get(select.value),
       onEnd: close,

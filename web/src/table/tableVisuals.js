@@ -205,3 +205,78 @@ export function animateAreaFade(area, fade, dt) {
   setAreaOpacity(area, fade.t < 0.2 ? fade.t / 0.2 : Math.max(0, 1 - (fade.t - 1) / 0.5));
   return fade.t >= 1.5;
 }
+
+/** Rotação Y (grupo da mesa) para a criatura olhar para onde aponta o topo da carta (yaw em graus). */
+export function facingFromYaw(yawDeg) {
+  const a = (yawDeg * Math.PI) / 180;
+  return Math.atan2(Math.sin(a), -Math.cos(a));
+}
+
+/**
+ * Criaturas das cartas reconhecidas na mesa: aplica os eventos do TableCards (spawn, move, tap,
+ * untap, remove). Cada criatura fica em pé no centro da carta, olhando para onde o topo da carta
+ * aponta, e desliza suave quando a carta anda. onEvent(texto) recebe uma frase para o status.
+ */
+export class RecognizedCreatures {
+  constructor(tableRoot, resolver, onEvent = () => {}) {
+    this.tableRoot = tableRoot;
+    this.resolver = resolver;
+    this.onEvent = onEvent;
+    this.byId = new Map();
+  }
+
+  apply(events) {
+    for (const { type, entry } of events) {
+      const name = entry.card.displayName ?? entry.card.name;
+      if (type === 'spawn') {
+        const choice = this.resolver.resolve(entry.card);
+        const creature = makeCreature(choice, { height: creatureHeight(entry.card.power) });
+        creature.position.copy(local(entry.pos));
+        creature.rotation.y = facingFromYaw(entry.yaw);
+        creature.userData.target = { pos: creature.position.clone(), rot: creature.rotation.y };
+        creature.userData.spawn();
+        creature.userData.recognized = entry.id;
+        this.tableRoot.add(creature);
+        this.byId.set(entry.id, creature);
+        this.onEvent(`${name} na mesa → ${this.resolver.label(choice.modelId)}`);
+      } else if (type === 'move') {
+        const c = this.byId.get(entry.id);
+        if (c) c.userData.target = { pos: local(entry.pos), rot: facingFromYaw(entry.yaw) };
+      } else if (type === 'tap') {
+        this.byId.get(entry.id)?.userData.attack?.();
+        this.onEvent(`${name} atacou`);
+      } else if (type === 'remove') {
+        const c = this.byId.get(entry.id);
+        if (c) {
+          this.tableRoot.remove(c);
+          this.byId.delete(entry.id);
+          this.onEvent(`${name} saiu da mesa`);
+        }
+      }
+    }
+  }
+
+  /** Movimento suave até a posição/rotação nova e animação de cada criatura. */
+  update(dt) {
+    const k = 1 - Math.exp(-dt * 8);
+    for (const c of this.byId.values()) {
+      const t = c.userData.target;
+      if (t) {
+        c.position.lerp(t.pos, k);
+        let d = t.rot - c.rotation.y;
+        d = Math.atan2(Math.sin(d), Math.cos(d));
+        c.rotation.y += d * k;
+      }
+    }
+    updateCreatures(this.byId.values(), dt);
+  }
+
+  clear() {
+    for (const c of this.byId.values()) this.tableRoot.remove(c);
+    this.byId.clear();
+  }
+
+  get size() {
+    return this.byId.size;
+  }
+}

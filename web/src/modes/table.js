@@ -13,8 +13,11 @@ import {
 } from '../table/tableFrame.js';
 import {
   GOLD, HANDLE_OFFSET, v3, frameMatrix, frameFromMatrix, makeArea, setAreaOpacity, disposeTree,
-  makeTableRig, fitShadowCatcher, summonOnTable, updateCreatures, animateAreaFade,
+  makeTableRig, fitShadowCatcher, summonOnTable, updateCreatures, animateAreaFade, RecognizedCreatures,
 } from '../table/tableVisuals.js';
+import { TableCards, planScans, scanOrder, coverage } from '../table/tableCards.js';
+import { TableCardScanner } from '../table/cardScanner.js';
+import { XrCameraImage, cameraAccessAvailable, projectShot } from '../table/xrCameraImage.js';
 
 const MIN_TABLE_AREA = 0.15; // m², igual ao Unity
 const DRAG_THRESHOLD = 0.015; // abaixo disso o toque é toque, não arrasto
@@ -162,7 +165,7 @@ const MESSAGES = {
   [State.NoTableHint]: 'Não encontrei a mesa. Acenda uma luz, use um playmat ou uma toalha com textura e evite superfícies lisas ou brilhantes.',
   [State.AwaitingCenterTap]: 'Toque no centro da mesa',
   [State.Adjusting]: 'Arraste para mover, use a alça para girar e confirme',
-  [State.Confirmed]: 'Toque na mesa para invocar a criatura escolhida',
+  [State.Confirmed]: 'Ponha as cartas na mesa, ou toque nela para invocar a criatura escolhida',
 };
 
 /**
@@ -170,11 +173,12 @@ const MESSAGES = {
  *       retry, recalibrate, cardSelect, exit }
  * pickCard(): a carta que o próximo toque invoca.
  */
-export async function startTableMode({ ui, resolver, pickCard, onEnd }) {
+export async function startTableMode({ ui, catalog, resolver, pickCard, onEnd }) {
   // A sessão é pedida antes de qualquer outra coisa: o navegador só aceita logo depois do toque.
   const session = await navigator.xr.requestSession('immersive-ar', {
     requiredFeatures: ['hit-test'],
-    optionalFeatures: ['dom-overlay', 'anchors', 'plane-detection', 'light-estimation', 'local-floor'],
+    // camera-access: a imagem da câmera, para ler as cartas (só o Chrome no Android tem).
+    optionalFeatures: ['dom-overlay', 'anchors', 'plane-detection', 'light-estimation', 'camera-access'],
     domOverlay: { root: ui.overlay },
   });
 
@@ -268,6 +272,7 @@ export async function startTableMode({ ui, resolver, pickCard, onEnd }) {
     ui.retry.hidden = state !== State.NoTableHint;
     ui.recalibrate.hidden = state !== State.Confirmed;
     ui.cardSelect.hidden = state !== State.Confirmed;
+    ui.recognizeRow.hidden = state !== State.Confirmed;
     ui.progress.hidden = !(state === State.Scanning || state === State.NoTableHint);
     for (const b of ui.seats) b.setAttribute('aria-pressed', String(b.dataset.seat === seat));
     planeGrid.setVisible(state === State.Scanning || state === State.NoTableHint || state === State.AwaitingCenterTap);
@@ -280,7 +285,12 @@ export async function startTableMode({ ui, resolver, pickCard, onEnd }) {
     if (!started) text = MESSAGES.starting;
     else if (lost.value) { text = MESSAGES.lost; level = 'error'; }
     else if (notice && clockTime < notice.until) { text = notice.text; level = notice.level; }
-    else { text = MESSAGES[sm.state]; if (sm.state === State.NoTableHint) level = 'warn'; }
+    else {
+      text = MESSAGES[sm.state];
+      // Sem a imagem da câmera (ou com o reconhecimento desligado), a mesa só invoca pelo toque.
+      if (sm.state === State.Confirmed && (ui.recognize.disabled || !ui.recognize.checked)) text = 'Toque na mesa para invocar a criatura escolhida';
+      if (sm.state === State.NoTableHint) level = 'warn';
+    }
     if (ui.status.textContent !== text) ui.status.textContent = text;
     ui.status.dataset.level = level;
   }
@@ -359,6 +369,8 @@ export async function startTableMode({ ui, resolver, pickCard, onEnd }) {
     vibrate(20);
   }, { signal });
   ui.recalibrate.addEventListener('click', () => {
+    forgetCards(); // a mesa vai mudar: as cartas são lidas de novo depois de confirmar
+    epoch++;
     anchor?.delete?.();
     anchor = null;
     anchorPending = false;
@@ -374,7 +386,77 @@ export async function startTableMode({ ui, resolver, pickCard, onEnd }) {
     scan.reset();
     sm.retryScan();
   }, { signal });
+  ui.recognize.addEventListener('change', () => {
+    if (!ui.recognize.checked) forgetCards();
+    renderStatus();
+  }, { signal });
   ui.exit.addEventListener('click', () => session.end(), { signal });
+
+  // ---------------- reconhecimento das cartas na mesa (imagem da câmera da RA + OCR)
+  const cards = new TableCards();
+  const recognized = new RecognizedCreatures(tableRoot, resolver, (t) => say(t, 3));
+  const camImage = cameraAccessAvailable(session) ? new XrCameraImage(renderer, session) : null;
+  let shotRequest = null; // resolve da próxima imagem pedida ao quadro
+  let ended = false;
+  let scanner = null;
+  ui.scanInfo.textContent = camImage ? '' : 'este celular não entrega a imagem da câmera na RA: use a Mesa com câmera parada';
+  ui.recognize.disabled = !camImage;
+
+  function forgetCards() {
+    cards.clear();
+    recognized.clear();
+    if (camImage) ui.scanInfo.textContent = '';
+  }
+
+  let jobIndex = 0;
+
+  async function scanLoop() {
+    while (!ended && camImage) {
+      if (sm.state !== State.Confirmed || !ui.recognize.checked || lost.value || !frame) {
+        await new Promise((r) => setTimeout(r, 300));
+        continue;
+      }
+      try {
+        if (!scanner) {
+          ui.scanInfo.textContent = 'preparando a leitura…';
+          scanner = await new TableCardScanner(catalog).ready();
+        }
+        const shot = await new Promise((resolve) => { shotRequest = resolve; });
+        if (!shot) {
+          await new Promise((r) => setTimeout(r, 500));
+          continue;
+        }
+        const at = shot.frame;
+        const toImage = (pos) => projectShot(at.tableToWorld(pos), shot);
+        const visibleInShot = (pos) => {
+          const q = toImage(pos);
+          return !!q && q.x > shot.w * 0.03 && q.x < shot.w * 0.97 && q.y > shot.h * 0.03 && q.y < shot.h * 0.97;
+        };
+        // A mesa é lida por blocos (seu lado, lado do oponente, cartas viradas), um por foto.
+        const order = scanOrder(planScans(at, visibleInShot));
+        if (!order.length) {
+          ui.scanInfo.textContent = 'aponte a câmera para a área de jogo';
+          await new Promise((r) => setTimeout(r, 500));
+          continue;
+        }
+        const job = order[jobIndex++ % order.length];
+        const src = scanner.gray(shot.canvas, shot.w, shot.h);
+        if (import.meta.env?.DEV) window.__xrTableDebug = { src, job, toImage, shot, scanner, cards };
+        const detections = await scanner.scan(src, job, toImage);
+        if (ended || sm.state !== State.Confirmed || !ui.recognize.checked || shot.epoch !== epoch) continue;
+        // Só conta como sumida a carta que ESTE bloco, nesta foto, teria lido.
+        const couldRead = (pos, e) => coverage(job, pos, e, (q) => !lost.value && visibleInShot(q));
+        recognized.apply(cards.update(detections, clockTime, couldRead));
+        const n = cards.entries.size;
+        ui.scanInfo.textContent = n ? `${n} carta${n > 1 ? 's' : ''} na mesa` : 'nenhuma carta lida ainda';
+      } catch (err) {
+        console.warn('Leitura das cartas falhou', err);
+        ui.scanInfo.textContent = 'a leitura falhou; tentando de novo';
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+    }
+  }
+  let epoch = 0; // muda a cada recalibração: leitura de antes não vale
 
   // ---------------- toques no mundo: toque, arrasto da área e alça
   session.addEventListener('selectstart', (e) => {
@@ -532,14 +614,36 @@ export async function startTableMode({ ui, resolver, pickCard, onEnd }) {
       renderStatus();
     }
     // Rastreamento perdido: as criaturas congelam (PLANO §5.3).
-    if (!lost.value) updateCreatures(creatures, dt);
+    if (!lost.value) {
+      updateCreatures(creatures, dt);
+      recognized.update(dt);
+    }
     renderer.render(scene, camera);
+
+    // Imagem da câmera para o leitor de cartas (depois de desenhar: a textura vale até o fim do quadro).
+    const view = xrFrame?.getViewerPose(refSpace)?.views[0];
+    if (shotRequest && view) {
+      const resolve = shotRequest;
+      shotRequest = null;
+      let shot = null;
+      try {
+        shot = camImage.grab(view);
+      } catch (err) {
+        console.warn('Imagem da câmera indisponível', err);
+      }
+      resolve(shot && frame ? { ...shot, frame, epoch } : null);
+    }
   });
 
   refreshUi(State.Scanning);
+  scanLoop();
 
   session.addEventListener('end', () => {
+    ended = true;
+    shotRequest?.(null);
     listeners.abort();
+    ui.recognizeRow.hidden = true;
+    ui.recognize.disabled = false;
     anchor?.delete?.();
     hitSource.cancel();
     touchHitSource?.cancel();
