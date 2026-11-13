@@ -309,12 +309,16 @@ export function readableAt(yaw, up) {
  * Divide a área de jogo em blocos para o OCR (cada um vira uma vista de cima no cardScanner).
  * Seu lado: cartas com o topo para o oponente (up 0). Lado do oponente: topo para você (up 180).
  * Depois, os mesmos blocos para as cartas viradas (atacando: o dono gira no sentido horário, up +90).
- * visible(pontoDaMesa): o ponto aparece no quadro? Blocos fora de vista ficam de fora.
+ * visible(pontoDaMesa): o ponto aparece no quadro? Bloco sem nenhum canto (nem o centro) à vista fica
+ * de fora. Blocos de ~32 × 20 cm: mesa maior vira mais blocos.
  * Retorna [{ region: {x0, x1, y0, y1} (m), up, owner, tapped }]: primeiro os em pé, depois os virados.
  */
-export function planScans(frame, visible = () => true, { cols = 2, rows = 2 } = {}) {
+export function planScans(frame, visible = () => true, { blockWidth = 0.32, blockDepth = 0.2 } = {}) {
   const W = frame.width / 2;
   const D = frame.depth / 2;
+  // Mesa maior = mais blocos (cada vista de cima continua do mesmo tamanho e rápida de ler).
+  const cols = Math.max(1, Math.ceil((2 * W) / blockWidth - 1e-9));
+  const rows = Math.max(1, Math.ceil(D / blockDepth - 1e-9));
   const halves = [
     { owner: 'you', up: 0, y0: -D, y1: 0 },
     { owner: 'opponent', up: 180, y0: 0, y1: D },
@@ -329,8 +333,13 @@ export function planScans(frame, visible = () => true, { cols = 2, rows = 2 } = 
           y0: half.y0 + ((half.y1 - half.y0) * r) / rows,
           y1: half.y0 + ((half.y1 - half.y0) * (r + 1)) / rows,
         };
-        const center = { x: (region.x0 + region.x1) / 2, y: (region.y0 + region.y1) / 2 };
-        if (!visible(center)) continue;
+        // Vale se qualquer parte aparece (o centro pode estar fora da câmera com cartas à vista).
+        const pts = [
+          { x: (region.x0 + region.x1) / 2, y: (region.y0 + region.y1) / 2 },
+          { x: region.x0, y: region.y0 }, { x: region.x1, y: region.y0 },
+          { x: region.x1, y: region.y1 }, { x: region.x0, y: region.y1 },
+        ];
+        if (!pts.some((q) => visible(q))) continue;
         upright.push({ region, up: half.up, owner: half.owner, tapped: false });
       }
     }
@@ -360,4 +369,40 @@ export function coverage(job, pos, e, inView) {
   if (readableAt(e.yaw, job.up)) return 'same';
   if (Math.abs(wrapDeg(e.yaw - job.up)) < 135) return 'turned';
   return null; // de ponta-cabeça para este bloco: quem lê é o bloco do outro lado
+}
+
+/**
+ * Lembra a assinatura de cada bloco lido para pular os que não mudaram (o OCR de um bloco leva
+ * segundos; a mesa fica quase toda parada). Um bloco parado ainda é relido de tempos em tempos
+ * (`maxAge`), para pegar o que escapou numa leitura.
+ */
+export class BlockMemory {
+  constructor({ threshold = 1.5, maxAge = 30, retry = 8 } = {}) {
+    this.retry = retry; // bloco com leitura incompleta (linha de tipo sem nome): volta logo
+    this.threshold = threshold;
+    this.maxAge = maxAge;
+    this.last = new Map(); // chave do bloco → { sig, at, unresolved }
+  }
+
+  static key(job) {
+    const r = job.region;
+    return `${r.x0.toFixed(3)},${r.x1.toFixed(3)},${r.y0.toFixed(3)},${r.y1.toFixed(3)},${job.up}`;
+  }
+
+  /** Precisa ler o bloco? change(a, b) mede a diferença entre duas assinaturas. */
+  needsRead(job, sig, now, change) {
+    const prev = this.last.get(BlockMemory.key(job));
+    if (!prev || !sig) return true;
+    if (now - prev.at >= (prev.unresolved ? this.retry : this.maxAge)) return true;
+    return change(sig, prev.sig) > this.threshold;
+  }
+
+  /** unresolved: a leitura achou sinal de carta (linha de tipo) sem conseguir o nome. */
+  remember(job, sig, now, unresolved = false) {
+    if (sig) this.last.set(BlockMemory.key(job), { sig, at: now, unresolved });
+  }
+
+  clear() {
+    this.last.clear();
+  }
 }
