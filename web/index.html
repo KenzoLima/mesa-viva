@@ -180,18 +180,37 @@
     </div>
   </div>
 
-  <!-- Overlay do modo Mesa (WebXR dom-overlay) -->
+  <!-- Overlay do modo Mesa (WebXR dom-overlay): status no alto, painel embaixo (no canto, deitado) -->
   <div id="xr-overlay" hidden>
-    <p id="xr-status" class="status"></p>
-    <div class="xr-controls">
-      <label id="xr-size-row" hidden>Tamanho <input id="xr-size" type="range" min="0.5" max="2" step="0.05" value="1" /></label>
-      <div id="xr-card" class="xr-card" hidden>
-        <input id="xr-search" type="search" placeholder="Buscar carta para invocar" autocomplete="off" />
-        <select id="xr-card-select"></select>
+    <div class="xr-top">
+      <p id="xr-status" class="status" role="status" aria-live="polite"></p>
+      <div id="xr-progress" class="xr-progress" role="progressbar" aria-label="Procurando a mesa" hidden><i></i></div>
+    </div>
+    <div class="xr-controls xr-panel">
+      <div id="xr-adjust" class="xr-adjust" hidden>
+        <div class="xr-row">
+          <button id="xr-rotate" class="ghost" type="button">Girar 90°</button>
+          <button id="xr-flip" class="ghost" type="button">Trocar lados</button>
+        </div>
+        <fieldset class="xr-seats">
+          <legend>De que lado você está?</legend>
+          <button type="button" data-seat="near" aria-pressed="true">Aqui</button>
+          <button type="button" data-seat="far" aria-pressed="false">Em frente</button>
+          <button type="button" data-seat="left" aria-pressed="false">Esquerda</button>
+          <button type="button" data-seat="right" aria-pressed="false">Direita</button>
+        </fieldset>
       </div>
-      <button id="xr-confirm" hidden>Confirmar mesa</button>
-      <button id="xr-recalibrate" class="ghost" hidden>Recalibrar</button>
-      <button id="xr-exit" class="ghost">Sair</button>
+      <label id="xr-size-row" hidden>Tamanho <input id="xr-size" type="range" min="0.5" max="1.6" step="0.05" value="1" /></label>
+      <div id="xr-card" class="xr-card" hidden>
+        <input id="xr-search" type="search" placeholder="Buscar carta para invocar" autocomplete="off" aria-label="Buscar carta para invocar" />
+        <select id="xr-card-select" aria-label="Carta que o próximo toque invoca"></select>
+      </div>
+      <div class="xr-row">
+        <button id="xr-confirm" type="button" hidden>Confirmar mesa</button>
+        <button id="xr-retry" type="button" hidden>Tentar de novo</button>
+        <button id="xr-recalibrate" class="ghost" type="button" hidden>Recalibrar</button>
+        <button id="xr-exit" class="ghost" type="button">Sair</button>
+      </div>
     </div>
   </div>
 

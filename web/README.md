@@ -31,6 +31,32 @@ Outros comandos:
 - `npm run build`: gera o site em `dist/`;
 - `npm run dev:http`: só o menu no PC, sem HTTPS.
 
+## Modo Mesa no Android
+
+Precisa do **Chrome no Android** com o **Google Play Services para RA** (ARCore) instalado. Abra o app pela Vercel ou pelo `npm run dev` (HTTPS), vá em **Batalha → Mesa** e aceite a câmera.
+
+O fluxo é o da calibração do plano (`docs/PLANO.md` §3.5 e `docs/MESA_GUIA.md`):
+
+1. **Procurar:** mova o celular devagar sobre a mesa. A barra enche e, se o aparelho der detecção de planos, a grade dourada aparece na mesa. Depois de 15 s sem mesa aparece a dica, com **Tentar de novo**.
+2. **Tocar no centro:** toque na mesa (onde está o anel dourado). Tocar fora avisa e vibra.
+3. **Ajustar:** arraste dentro da área para mover; arraste a **alça** (o disco além do lado do oponente) para girar. Há **Girar 90°**, **Trocar lados**, **De que lado você está?** e **Tamanho**.
+4. **Confirmar:** a mesa vira uma âncora do ARCore (não escorrega quando você anda) e a área pisca e some.
+5. **Jogar:** escolha a carta e toque na mesa: a criatura surge ali, olhando para o outro lado, com sombra e altura pelo poder (PLANO §5.4). Fora da área, a área aparece de relance. **Recalibrar** refaz a mesa sem apagar as criaturas.
+
+Com o rastreamento perdido (câmera coberta, movimento brusco), aparece "Rastreamento perdido" e as criaturas congelam até voltar.
+
+Recursos do WebXR usados: `hit-test` (obrigatório) e, quando o aparelho dá, `dom-overlay`, `anchors`, `plane-detection` e `light-estimation`. Sem os opcionais o modo continua funcionando (sem grade nos planos, mesa sem âncora, luz padrão).
+
+### Checklist no aparelho
+- [ ] A barra enche em poucos segundos sobre a mesa (e a grade aparece, se houver detecção de planos).
+- [ ] Tocar fora da mesa mostra o aviso e vibra.
+- [ ] Tocar na mesa mostra a área com VOCÊ perto do celular e OPONENTE longe.
+- [ ] Arrastar a alça gira a área; arrastar dentro dela a move. "Girar 90°", "Trocar lados", os lados e o tamanho funcionam.
+- [ ] "Confirmar" faz a área piscar e sumir. Ao andar com o celular, as criaturas ficam no mesmo lugar.
+- [ ] Tocar no seu lado invoca a criatura olhando para o oponente; no outro lado, olhando para você.
+- [ ] Ao cobrir a câmera, aparece "Rastreamento perdido". Ao descobrir, volta sozinho.
+- [ ] Numa mesa lisa e branca, depois de ~15 s aparece "Não encontrei a mesa".
+
 ## Publicar de graça (Vercel)
 
 O app é publicado na Vercel, com HTTPS de verdade e sem aviso de certificado. A configuração fica em `web/vercel.json` (`npm ci`, `npm run build`, saída em `dist/`). Para publicar, rode `vercel --prod` dentro da pasta `web/`.
@@ -76,8 +102,8 @@ Mudou o `model_map.json`? Rode `npm run sync-data`. O CI confere com `--check`.
 | `src/data/textNorm.js` | `Data/TextNormalizer.cs` | `mtgar_data/text_norm.py` |
 | `src/data/catalog.js` | `Data/CardCatalog.cs` | `scripts/export_app_catalog.py` (gera) |
 | `src/data/modelResolver.js` | `Data/ModelResolver.cs` | `mtgar_data/model_resolver.py` (referência) |
-| `src/table/tableFrame.js` | `Table/TableFrame.cs`, `Table/TableCalibrationStateMachine.cs` | — |
-| `src/modes/table.js` | `Table/TableCalibrationController.cs`, `TableAreaVisualizer.cs`, cena `Mesa` | — |
+| `src/table/tableFrame.js` | `Table/TableFrame.cs`, `Table/TableCalibrationStateMachine.cs`, `Table/TrackingStatus.cs` (histerese) | — |
+| `src/modes/table.js` | `Table/TableCalibrationController.cs`, `TableAreaVisualizer.cs`, `PlaneScanVisualizer.cs`, `UI/CalibrationScreenView.cs`, cena `Mesa` | — |
 | `src/modes/cards.js` | `Phase0/CardCreatureSpawner.cs`, cena `Fase0` | — |
 | `src/creatures.js` | `Phase0/CardPrefabLibrary.cs`, `CreatureSpawnFx.cs` | — |
 
@@ -85,4 +111,4 @@ As três implementações do `ModelResolver` precisam decidir igual. Os testes e
 
 ## Ainda não portado do Unity
 
-Leitura e gerenciamento de decks (`DeckParser.cs`, `DeckStore.cs`), as telas de menu completas (`UI/Screens`), configurações (`AppSettings.cs`) e o filtro de status do rastreamento (`TrackingStatus*.cs`). O código C# continua no projeto como referência. Veja `docs/UNITY_ARQUIVO.md`.
+Leitura e gerenciamento de decks (`DeckParser.cs`, `DeckStore.cs`), as telas de menu completas (`UI/Screens`), configurações (`AppSettings.cs`) e os estados detalhados do rastreamento (`TrackingStatus*.cs`: pouca luz, movimento rápido; o WebXR só diz se o rastreamento está bom ou perdido). O código C# continua no projeto como referência. Veja `docs/UNITY_ARQUIVO.md`.
