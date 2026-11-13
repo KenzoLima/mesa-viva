@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { detectCardQuad } from '../src/recognition/cardDetector.js';
-import { renderScene, ocrTitleBox, maxCornerError } from './helpers/syntheticCard.js';
+import { renderScene, ocrTitleBox, maxCornerError, SUBTYPE } from './helpers/syntheticCard.js';
 
 const W = 640;
 const H = 1138; // retrato, como a câmera do iPhone reduzida
@@ -28,3 +28,19 @@ test('sem carta, não inventa um contorno', () => {
   const frame = renderScene(W, H, [{ x: -900, y: -900 }, { x: -800, y: -900 }, { x: -800, y: -760 }, { x: -900, y: -760 }]);
   assert.equal(detectCardQuad(frame, { x0: 250, x1: 380, y0: 470, y1: 482 }), null);
 });
+
+for (const [name, q] of Object.entries(cases)) {
+  test(`carta com molduras: acha a carta inteira, não a caixa de texto (${name})`, () => {
+    const frame = renderScene(W, H, q, { framed: true });
+    const found = detectCardQuad(frame, ocrTitleBox(q));
+    assert.ok(found, 'não achou a carta');
+    const size = Math.hypot(q[1].x - q[0].x, q[1].y - q[0].y);
+    assert.ok(maxCornerError(found, q) < Math.max(3, size * 0.03), 'contorno não é o da carta inteira');
+  });
+
+  test(`subtipo lido como nome não vira a caixa de texto (${name})`, () => {
+    const frame = renderScene(W, H, q, { framed: true });
+    // "Elf Warrior" da linha de tipo, lido como se fosse o nome no topo de uma carta.
+    assert.equal(detectCardQuad(frame, ocrTitleBox(q, 1.5, SUBTYPE)), null);
+  });
+}

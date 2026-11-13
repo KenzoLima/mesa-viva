@@ -39,6 +39,18 @@ export function levenshtein(a, b, max = Infinity) {
 
 const isToken = (card) => card.isToken;
 
+// Palavras do texto de regras que também são nome (ou face) de carta. No modo de texto esparso o OCR
+// devolve "When" ou "Vigilance" sozinhos numa linha, e isso fazia surgir um objeto em cima da carta.
+// Nunca valem sozinhas: rótulos de carta dividida e palavras que abrem frase.
+const RULES_ONLY = new Set(['who', 'what', 'when', 'where', 'why', 'whenever', 'the', 'return', 'sacrifice']);
+// Habilidades (inglês e português) que são nome de carta de verdade: só valem com o contorno da
+// carta achado em volta do nome (sem o plano B do retângulo estimado), o que barra a linha de
+// habilidade dentro da caixa de texto.
+const KEYWORD_NAMES = new Set(['flash', 'flashback', 'cycling', 'landfall', 'morph', 'fear', 'regenerate', 'fight',
+  'explore', 'vigilance', 'lifelink', 'defender', 'persist', 'battle cry', 'vigilancia', 'ameacar', 'resistencia',
+  'vinculo com a vida', 'lampejo']);
+const keyOf = (text) => clean(text).replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
+
 export class NameMatcher {
   /** catalog: CardCatalog (usa byName: nome normalizado -> [oracle_id]). */
   constructor(catalog) {
@@ -203,7 +215,7 @@ export function findCardsInLine(matcher, line) {
     return m;
   };
 
-  for (const seg of segments(words)) {
+  for (const seg of typeContinuations(segments(words))) {
     const typeIdx = seg.map((w, i) => (fuzzyIn(w.text, TYPE_WORDS) ? i : -1)).filter((i) => i >= 0);
     if (typeIdx.length) {
       // Linha de tipo: só serve para token (em carta normal o subtipo não é o nome).
@@ -211,6 +223,11 @@ export function findCardsInLine(matcher, line) {
       if (t) out.push(t);
       continue;
     }
+    // Travessão antes de uma palavra = linha de tipo com o começo cortado ("ure — Elf Druid", com a
+    // carta girada). O nome da carta nunca tem travessão solto. Um "-" de lixo na frente do nome não
+    // conta: vale o travessão de verdade (— –) ou qualquer traço com uma palavra antes.
+    if (seg.some((w, i) => i < seg.length - 1 && DASH.test(w.text.trim())
+      && (/[—–]/.test(w.text) || seg.slice(0, i).some((x) => letters(x.text).length >= 2)))) continue;
     // Programação dinâmica: cobre o segmento com nomes e palavras descartáveis; no máximo uma
     // palavra "boa" fica de fora (texto de regras com o nome no meio não vira carta).
     const n = seg.length;
@@ -269,8 +286,69 @@ export function findCardsInLine(matcher, line) {
       if (letters(p.text).length < 4 && seg.some((w) => !p.span.includes(w) && solid(w))) continue;
       const { span, ...rest } = p;
       // strict: a linha é só o nome e lixo em volta (dá para confiar até sem achar o contorno).
-      out.push({ ...rest, strict: !skipped });
+      const key = keyOf(p.text);
+      if (RULES_ONLY.has(key)) continue;
+      out.push({ ...rest, strict: !skipped, keyword: KEYWORD_NAMES.has(key) });
     }
+  }
+  return out;
+}
+
+/**
+ * O subtipo vem logo depois do tipo ("Creature — Elf Warrior"), mas o OCR às vezes perde o travessão
+ * e abre um espaço grande ali: o "Elf Warrior" ficava sozinho num segmento e virava o nome de um token
+ * (uma criatura a mais em cima da carta, com o contorno da caixa de texto). Segmento que vem logo
+ * depois de um com palavra de tipo volta a fazer parte dele.
+ */
+function typeContinuations(segs) {
+  const out = [];
+  for (const seg of segs) {
+    const prev = out[out.length - 1];
+    if (prev) {
+      const last = prev[prev.length - 1];
+      const h = medianHeight(prev);
+      const typed = prev.some((w) => fuzzyIn(w.text, TYPE_WORDS)) && (fuzzyIn(last.text, TYPE_WORDS) || DASH.test(last.text.trim()));
+      if (typed && seg[0].bbox.x0 - last.bbox.x1 < h * 4) {
+        prev.push(...seg);
+        continue;
+      }
+    }
+    out.push([...seg]);
+  }
+  return out;
+}
+
+/**
+ * Junta as linhas do OCR que estão na mesma altura e coladas na horizontal numa linha só.
+ * No modo de texto esparso o Tesseract quebra a linha de tipo em pedaços ("Creatur" | "Dragon"), e o
+ * pedaço com o subtipo virava o nome de um token: uma criatura a mais em cima da carta.
+ * Separar de novo o que é de cartas diferentes fica com findCardsInLine (espaço grande entre palavras).
+ */
+export function mergeRowLines(lines) {
+  const rows = lines
+    .map((l) => ({ ...l, words: (l.words ?? []).filter((w) => w.text?.trim()) }))
+    .filter((l) => l.words.length)
+    .sort((a, b) => a.bbox.x0 - b.bbox.x0);
+  const out = [];
+  for (const l of rows) {
+    const h = l.bbox.y1 - l.bbox.y0;
+    const row = out.find((o) => {
+      const oh = o.bbox.y1 - o.bbox.y0;
+      const overlap = Math.min(o.bbox.y1, l.bbox.y1) - Math.max(o.bbox.y0, l.bbox.y0);
+      const gap = l.bbox.x0 - o.bbox.x1;
+      return overlap > Math.min(h, oh) * 0.5 && gap > -Math.min(h, oh) && gap < Math.max(h, oh) * 4;
+    });
+    if (!row) {
+      out.push({ ...l, bbox: { ...l.bbox } });
+      continue;
+    }
+    row.words = [...row.words, ...l.words].sort((a, b) => a.bbox.x0 - b.bbox.x0);
+    row.text = row.words.map((w) => w.text).join(' ');
+    row.confidence = Math.max(row.confidence ?? 0, l.confidence ?? 0);
+    row.bbox = {
+      x0: Math.min(row.bbox.x0, l.bbox.x0), y0: Math.min(row.bbox.y0, l.bbox.y0),
+      x1: Math.max(row.bbox.x1, l.bbox.x1), y1: Math.max(row.bbox.y1, l.bbox.y1),
+    };
   }
   return out;
 }

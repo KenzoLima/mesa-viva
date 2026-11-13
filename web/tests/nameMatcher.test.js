@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { CardCatalog } from '../src/data/catalog.js';
-import { NameMatcher, findCardsInLine } from '../src/recognition/nameMatcher.js';
+import { NameMatcher, findCardsInLine, mergeRowLines } from '../src/recognition/nameMatcher.js';
 
 const catalog = new CardCatalog(
   readFileSync(new URL('../public/data/cards.tsv', import.meta.url), 'utf8'),
@@ -61,6 +61,41 @@ test('linha de tipo e texto de regras de carta normal não viram carta', () => {
   assert.deepEqual(found(line(['Creature', 0, 70], ['—', 76, 90], ['Elf', 96, 120], ['Druid', 126, 170])), []);
   assert.deepEqual(found(line(['Creature', 0, 70], ['—', 76, 90], ['Goblin', 96, 150], ['Scout', 156, 200])), []);
   assert.deepEqual(found(line(['O:', 0, 20], ['Shivan', 26, 80], ['Dragon', 86, 140], ['gets', 146, 180], ['+1/+0', 186, 230], ['until', 236, 270])), []);
+});
+
+test('subtipo separado do tipo por espaço grande (travessão perdido) não vira carta', () => {
+  assert.deepEqual(found(line(['Creature', 0, 70], ['Elf', 100, 124], ['Warrior', 130, 190])), []);
+  assert.deepEqual(found(line(['Creature', 0, 70], ['—', 76, 90], ['Goblin', 130, 180])), []);
+  assert.deepEqual(found(line(['Criatura', 0, 70], ['Soldier', 110, 170])), []);
+  // Token continua valendo pela linha de tipo.
+  assert.deepEqual(found(line(['Token', 0, 50], ['Creature', 56, 130], ['Goblin', 170, 220])), ['type:Goblin*']);
+});
+
+test('linha de tipo quebrada em pedaços pelo OCR não vira carta (leituras reais do benchmark)', () => {
+  // "Creature — Elf Druid" com o começo cortado (carta girada).
+  assert.deepEqual(found(line(['ure', 152, 167], ['—', 179, 189], ['EIf', 194, 214], ['Druid', 217, 256])), []);
+  // Traço de lixo antes do nome não atrapalha.
+  assert.deepEqual(found(line(['-', 0, 6, 40], ['Llanowar', 16, 90], ['Elves', 96, 140])), ['title:Llanowar Elves']);
+  // Modo esparso: "Creatur" e "Dragon" saem como duas linhas separadas.
+  const pieces = [
+    { text: 'Creatur', confidence: 77, bbox: { x0: 535, y0: 522, x1: 587, y1: 542 }, words: [{ text: 'Creatur', confidence: 77, bbox: { x0: 535, y0: 522, x1: 587, y1: 542 } }] },
+    { text: 'Dragon', confidence: 96, bbox: { x0: 615, y0: 528, x1: 664, y1: 546 }, words: [{ text: 'Dragon', confidence: 96, bbox: { x0: 615, y0: 528, x1: 664, y1: 546 } }] },
+    { text: 'Shivan Dragon', confidence: 94, bbox: { x0: 553, y0: 296, x1: 679, y1: 318 }, words: [
+      { text: 'Shivan', confidence: 94, bbox: { x0: 553, y0: 296, x1: 610, y1: 318 } },
+      { text: 'Dragon', confidence: 94, bbox: { x0: 617, y0: 296, x1: 679, y1: 318 } }] },
+  ];
+  const all = mergeRowLines(pieces).flatMap((l) => findCardsInLine(matcher, l)).map((m) => m.card.name);
+  assert.deepEqual(all, ['Shivan Dragon']);
+});
+
+test('palavra do texto de regras que também é nome de carta', () => {
+  // "When" é face de "Who // What // When // Where // Why": nunca vale sozinha.
+  assert.deepEqual(found(line(['When', 0, 40])), []);
+  // "Vigilance" é carta de verdade, mas sozinha na linha costuma ser a habilidade: vem marcada.
+  const [v] = findCardsInLine(matcher, line(['Vigilance', 0, 80]));
+  assert.equal(v?.card.name, 'Vigilance');
+  assert.equal(v.keyword, true);
+  assert.equal(findCardsInLine(matcher, line(['Llanowar', 0, 80], ['Elves', 86, 130]))[0].keyword, false);
 });
 
 test('pedaço de nome colado em outra palavra não vale', () => {

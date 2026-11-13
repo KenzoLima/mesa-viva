@@ -1,5 +1,5 @@
 // Campo de batalha: câmera em tela cheia que reconhece QUALQUER carta sozinha, sem cadastro.
-// Lê o nome impresso na carta (OCR com tesseract.js, inglês e português), acha a carta no catálogo
+// Lê o nome impresso na carta (OCR com tesseract.js, modelo de português: lê inglês e português), acha a carta no catálogo
 // inteiro (NameMatcher), acha o contorno real da carta em volta do nome (cardDetector), contorna de
 // amarelo e faz a criatura surgir em pé sobre ela.
 // Entre uma leitura e outra, o CardTracker segue a carta quadro a quadro (fluxo óptico),
@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import { getOcrReaders } from '../recognition/ocr.js';
 import { makeCreature, addLights } from '../creatures.js';
-import { NameMatcher, findCardsInLine } from '../recognition/nameMatcher.js';
+import { NameMatcher, findCardsInLine, mergeRowLines } from '../recognition/nameMatcher.js';
 import { GraySampler, CardTracker, cardRectFromTitle, grayFrame } from '../recognition/cardTracker.js';
 import { detectCardQuad } from '../recognition/cardDetector.js';
 
@@ -17,7 +17,7 @@ const MAX_SIDE = 1600; // resolução do quadro enviado ao OCR
 const OUTLINE = '#ffd23f'; // amarelo do contorno da carta reconhecida
 const PULSE = 0.7; // segundos do "flash" do contorno quando a carta é reconhecida
 const CREATURE_SIZE = 0.62; // altura da criatura em relação à largura da carta (na tela)
-const FEET_AT = 0.6; // onde ficam os pés: 0 = topo da carta, 1 = base
+const FEET_AT = 0.5; // onde ficam os pés: 0 = topo da carta, 1 = base (no centro da carta)
 const DETECT_WIDTH = 640; // resolução usada para achar o contorno da carta
 
 function ocrLines(data) {
@@ -43,6 +43,27 @@ function insideScaled(q, p, k) {
   return true;
 }
 
+function quadArea(q) {
+  let s = 0;
+  for (let i = 0; i < q.length; i++) s += q[i].x * q[(i + 1) % q.length].y - q[(i + 1) % q.length].x * q[i].y;
+  return Math.abs(s / 2);
+}
+
+/** Os dois contornos estão na mesma carta física (um tem o centro dentro do outro)? */
+const sameSpot = (a, b, k = 1) => insideScaled(a, centerOf(b), k) || insideScaled(b, centerOf(a), k);
+
+/**
+ * Entre dois contornos na mesma carta física, qual fica: o bem maior (o outro é um pedaço da carta,
+ * como a caixa de texto achada a partir de uma linha mal lida); com tamanhos parecidos, o mais antigo.
+ */
+const outranks = (a, b) => {
+  const qa = a.tracker.quadVideo();
+  const qb = b.tracker.quadVideo();
+  if (quadArea(qa) > quadArea(qb) * 1.5) return true;
+  if (quadArea(qb) > quadArea(qa) * 1.5) return false;
+  return a.id < b.id;
+};
+
 const AX = new THREE.Vector3();
 const AY = new THREE.Vector3();
 const AZ = new THREE.Vector3();
@@ -51,9 +72,8 @@ const BASIS = new THREE.Matrix4();
 /**
  * Orientação 3D da carta a partir do contorno na tela (q = [topo-esq, topo-dir, base-dir, base-esq]).
  * Resolve a pose de um retângulo 63x88 em projeção quase ortográfica; a perspectiva (lado mais
- * curto = mais longe) decide para que lado ela inclina. Devolve o quaternion da criatura:
- * "para cima" = normal da carta, frente (+Z do modelo) = topo da carta, ou seja, de costas para
- * quem está na base da carta, acompanhando quando a carta gira ou quando você anda em volta.
+ * curto = mais longe) decide para que lado ela inclina. Preenche AX (direita da carta),
+ * AY (normal da carta) e AZ (direção do topo da carta).
  */
 function cardPose(q) {
   const mid = (p1, p2) => ({ x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 });
@@ -88,6 +108,8 @@ const SIDE = new THREE.Vector3();
  * Pose da criatura: em pé, com a cabeça sempre para o alto da tela (o celular fica em pé e a mesa
  * embaixo), inclinada só o quanto a carta está inclinada, e girando junto com a carta no plano da mesa.
  * Usar a normal da carta crua deitava a criatura de lado sempre que o contorno saía um pouco torto.
+ * Frente (+Z do modelo) = TOPO da carta: a criatura fica de costas para quem jogou a carta, olhando
+ * para o campo do oponente, e gira junto quando a carta gira.
  */
 function creaturePose(q) {
   cardPose(q); // preenche AY (normal) e AZ (topo da carta)
@@ -95,7 +117,7 @@ function creaturePose(q) {
   const nz = THREE.MathUtils.clamp(Math.abs(AY.z), 0.35, 0.9);
   UP.set(0, Math.sqrt(1 - nz * nz), nz);
   FWD.copy(AZ).addScaledVector(UP, -AZ.dot(UP));
-  if (FWD.lengthSq() < 1e-6) FWD.set(0, -nz, Math.sqrt(1 - nz * nz));
+  if (FWD.lengthSq() < 1e-6) FWD.set(0, nz, -Math.sqrt(1 - nz * nz));
   FWD.normalize();
   SIDE.crossVectors(UP, FWD).normalize();
   return new THREE.Quaternion().setFromRotationMatrix(BASIS.makeBasis(SIDE, UP, FWD));
@@ -244,7 +266,8 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
 
       if (import.meta.env.DEV) window.__bfOcr = { psm: reader.psm, lines: ocrLines(data).map((l) => `${l.confidence | 0} ${l.text.trim()}`), misses };
       const found = [];
-      for (const line of ocrLines(data)) {
+      // O modo esparso quebra uma linha em pedaços; junta os da mesma altura antes de procurar nomes.
+      for (const line of mergeRowLines(ocrLines(data))) {
         // A confiança da linha cai quando o OCR junta texto de duas cartas; o filtro fino é por palavra.
         if (line.confidence < 20) continue;
         found.push(...findCardsInLine(matcher, line));
@@ -274,7 +297,23 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
         const quad = detectCardQuad(detect, { x0: x0 * f, y0: y0 * f, x1: x1 * f, y1: y1 * f }, { anchor: m.anchor });
         if (quad) {
           misses.delete(m.card.oracleId);
-          summon(m.card, { quad: quad.map((p) => ({ x: p.x / detect.scale, y: p.y / detect.scale })) }, snapshot, entry);
+          const vq = quad.map((p) => ({ x: p.x / detect.scale, y: p.y / detect.scale }));
+          // Uma criatura por carta FÍSICA: se o contorno cai numa carta já presa, é a mesma carta.
+          const other = [...onField.values()].find((e) => e !== entry && e.tracker.ok && sameSpot(e.tracker.quadVideo(), vq));
+          if (other) {
+            const bigger = quadArea(vq) > quadArea(other.tracker.quadVideo()) * 1.5;
+            if (!bigger || m.anchor !== 'title') {
+              if (other.card.oracleId === m.card.oracleId) other.lastSeen = elapsed;
+              continue;
+            }
+            // A carta presa era só um pedaço desta (a caixa de texto): o nome lido agora manda.
+            if (other.card.oracleId === m.card.oracleId) {
+              summon(m.card, { quad: vq }, snapshot, other);
+              continue;
+            }
+            dismiss(other);
+          }
+          summon(m.card, { quad: vq }, snapshot, entry);
           continue;
         }
         // Sem bordas claras (carta cortada, mão na frente): espera a próxima leitura antes de chutar
@@ -282,13 +321,22 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
         // e nada mais, bem lido): um nome achado no meio do texto de regras nunca vira criatura sem contorno.
         const n = (misses.get(m.card.oracleId) ?? 0) + 1;
         misses.set(m.card.oracleId, n);
-        const trusty = m.anchor === 'title' && m.strict && m.score >= 0.95 && m.text.replace(/[^\p{L}]/gu, '').length >= 6;
+        // Nome que também é habilidade ("Vigilance", "Flash") nunca: é quase sempre a linha da caixa de texto.
+        const trusty = m.anchor === 'title' && m.strict && !m.keyword && m.score >= 0.95
+          && m.text.replace(/[^\p{L}]/gu, '').length >= 6;
         if (n >= 2 && trusty) {
           summon(m.card, { rect: cardRectFromTitle({ x0: x0 / k, y0: y0 / k, x1: x1 / k, y1: y1 / k }) }, snapshot, entry);
         }
       }
       refreshStatus();
     }
+  }
+
+  function dismiss(e) {
+    scene.remove(e.creature);
+    e.label.remove();
+    e.spinner?.remove();
+    onField.delete(e.id);
   }
 
   function summon(card, start, snapshot, entry) {
@@ -367,15 +415,12 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
         e.place = placement(e.tracker.quadVideo());
         e.quad = e.place.quad;
       }
-      // Duas entradas presas na mesma carta física (o quadro do OCR é de 1-3 s atrás): fica a mais antiga.
-      const twin = e.tracker.ok && [...onField.values()].find((o) => o !== e && o.id < e.id
-        && o.card.oracleId === e.card.oracleId && o.tracker.ok
-        && insideScaled(o.tracker.quadVideo(), centerOf(e.tracker.quadVideo()), 0.4));
+      // Duas entradas presas na mesma carta física (o quadro do OCR é de 1-3 s atrás, ou uma linha
+      // de tipo/regras lida como nome): uma carta só tem uma criatura. Fica a da carta inteira.
+      const twin = e.tracker.ok && [...onField.values()].find((o) => o !== e && o.tracker.ok
+        && sameSpot(o.tracker.quadVideo(), e.tracker.quadVideo(), 0.8) && outranks(o, e));
       if (twin || elapsed - e.lastSeen > LOST_AFTER) {
-        scene.remove(e.creature);
-        e.label.remove();
-        e.spinner?.remove();
-        onField.delete(id);
+        dismiss(e);
         refreshStatus();
         continue;
       }

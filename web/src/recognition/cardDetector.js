@@ -69,6 +69,29 @@ const ANCHORS = {
 };
 
 export function detectCardQuad(frame, title, { anchor = 'title', debug } = {}) {
+  const q = detectAnchored(frame, title, anchor, debug);
+  if (!q || anchor !== 'title') return q;
+  // O texto lido como nome pode ser o subtipo da linha de tipo ("Creature — Elf Warrior" com o
+  // travessão perdido) ou uma linha do texto de regras. Aí o "cartão" achado é a caixa de texto: um
+  // retângulo DENTRO da carta, com o texto no topo dele. Se o mesmo texto, visto como linha de tipo
+  // (no meio da carta), cabe numa carta maior que contém esse retângulo, não é o nome: descarta.
+  const outer = detectAnchored(frame, title, 'type');
+  if (outer && Math.abs(quadArea(outer)) > Math.abs(quadArea(q)) * 1.5) {
+    const c = { x: (q[0].x + q[1].x + q[2].x + q[3].x) / 4, y: (q[0].y + q[1].y + q[2].y + q[3].y) / 4 };
+    const inner = q.filter((p) => inside(grow(outer, 1.06), p.x, p.y)).length;
+    if (inside(outer, c.x, c.y) && inner >= 3) return null;
+  }
+  return q;
+}
+
+/** Quad aumentado k vezes em volta do centro. */
+function grow(q, k) {
+  const cx = (q[0].x + q[1].x + q[2].x + q[3].x) / 4;
+  const cy = (q[0].y + q[1].y + q[2].y + q[3].y) / 4;
+  return q.map((p) => ({ x: cx + (p.x - cx) * k, y: cy + (p.y - cy) * k }));
+}
+
+function detectAnchored(frame, title, anchor, debug) {
   const pos = { ...(ANCHORS[anchor] ?? ANCHORS.title), debug };
   const th = Math.max(4, title.y1 - title.y0);
   const tw = Math.max(th, title.x1 - title.x0);
@@ -331,7 +354,17 @@ function detectWith(frame, title, pos, cardH) {
   const top1 = Math.max(...cands.map((c) => c.score));
   const pool = cands.filter((c) => c.score >= top1 - 0.12).sort((a, b) => b.area - a.area);
   best = pool.find((c) => !hasTableStrip(c.q)) ?? pool[0];
-  return refineSides(best.q, edges, rx0, ry0) ?? best.q;
+  // O Hough tem passo de 1°: a reta escolhida pode sair torta e pegar a borda de fora num canto e a de
+  // dentro no outro. Cada passada de ajuste endireita um pouco; para quando não mexe mais.
+  let q = best.q;
+  for (let it = 0; it < 3; it++) {
+    const r = refineSides(q, edges, rx0, ry0);
+    if (!r) break;
+    const moved = Math.max(...r.map((p, i) => dist(p, q[i])));
+    q = r;
+    if (moved < 0.5) break;
+  }
+  return q;
 }
 
 /** Reta por mínimos quadrados totais: { m: ponto, d: direção unitária }. */
@@ -394,17 +427,27 @@ function refineSides(q, edges, rx0, ry0) {
     }
     let line = { m: a, d };
     if (near.length >= Math.max(6, len * 0.25)) {
-      // A borda da carta tem duas linhas paralelas (fora e dentro da moldura preta): fica com a de fora.
-      const bins = new Array(2 * nb + 1).fill(0);
-      for (const p of near) bins[Math.round(p.off * 2) + nb]++;
-      const peak = Math.max(...bins);
-      let pick = nb;
-      for (let k = 1; k < 2 * nb; k++) if (bins[k] >= peak * 0.4 && bins[k] >= bins[k - 1] && bins[k] >= bins[k + 1]) pick = k;
-      const center = (pick - nb) / 2;
-      const pts = near.filter((p) => Math.abs(p.off - center) <= 1);
+      // A borda da carta tem duas linhas paralelas (fora e dentro da moldura preta), e a reta do Hough
+      // pode estar um pouco torta: numa ponta do lado a borda de fora fica na mesma distância que a de
+      // dentro na outra. Por isso a escolha da "de fora" é feita trecho a trecho ao longo do lado.
+      const NB = 6;
+      const bins = Array.from({ length: NB }, () => []);
+      for (const p of near) {
+        const along = (p.x - a.x) * d.x + (p.y - a.y) * d.y;
+        bins[Math.min(NB - 1, Math.max(0, Math.floor(((along / len - 0.06) / 0.88) * NB)))].push(p);
+      }
+      const pts = [];
+      for (const bin of bins) {
+        if (bin.length < 2) continue;
+        const offs = bin.map((p) => p.off).sort((x, y) => y - x);
+        const need = Math.max(2, bin.length * 0.2);
+        const outer = offs.find((o) => offs.filter((x) => Math.abs(x - o) <= 1).length >= need);
+        if (outer === undefined) continue;
+        pts.push(...bin.filter((p) => Math.abs(p.off - outer) <= 1));
+      }
       if (pts.length >= Math.max(6, len * 0.2)) {
         line = fitLine(pts);
-        const res = pts.filter((p) => Math.abs((p.x - line.m.x) * -line.d.y + (p.y - line.m.y) * line.d.x) <= 1);
+        const res = pts.filter((p) => Math.abs((p.x - line.m.x) * -line.d.y + (p.y - line.m.y) * line.d.x) <= 1.2);
         if (res.length >= 6) line = fitLine(res);
       }
     }

@@ -114,13 +114,19 @@ function proceduralBody(choice) {
   return creatureBody(choice, colors);
 }
 
-/** Ajusta o objeto para ficar com a base em y=0 e a altura dada. */
+/**
+ * Ajusta o objeto para ficar com a base em y=0, centrado em x/z (em cima do ponto onde o app o põe)
+ * e com a altura dada. Modelo com a origem fora do corpo aparecia deslocado, fora da carta.
+ */
 function fitHeight(obj, height) {
   const box = new THREE.Box3().setFromObject(obj);
   const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
   const s = height / Math.max(size.y, size.x * 0.8, 1e-6);
   obj.scale.multiplyScalar(s);
+  obj.position.x -= center.x * s;
   obj.position.y -= box.min.y * s;
+  obj.position.z -= center.z * s;
 }
 
 /**

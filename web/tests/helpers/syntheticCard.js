@@ -7,12 +7,26 @@ const words = Array.from({ length: 90 }, () => ({ u: 0.09 + rnd() * 0.75, v: 0.6
 
 // Nome: faixa de "letras" em u ∈ [0.08, 0.62], v ∈ [0.058, 0.088].
 export const TITLE = { u0: 0.08, u1: 0.62, v0: 0.058, v1: 0.088 };
+// Subtipo na linha de tipo ("Elf Warrior", depois de "Creature —"), só na carta com molduras.
+export const SUBTYPE = { u0: 0.4, u1: 0.7, v0: 0.572, v1: 0.598 };
 
-/** Cor (0-255) da carta no ponto (u, v) ∈ [0,1]². */
-export function cardColor(u, v) {
+const letter = (u) => (((u * 160) | 0) % 3 ? 25 : 200);
+
+/**
+ * Cor (0-255) da carta no ponto (u, v) ∈ [0,1]².
+ * framed: molduras de carta de verdade (quadro da arte, caixa da linha de tipo e caixa de texto com
+ * contorno escuro): retângulos internos que o detector não pode confundir com a carta.
+ */
+export function cardColor(u, v, framed = false) {
   if (u < 0.04 || u > 0.96 || v < 0.03 || v > 0.97) return 12; // borda preta
   if (u < 0.065 || u > 0.935 || v < 0.045 || v > 0.955) return 150; // moldura colorida
-  if (v > TITLE.v0 && v < TITLE.v1 && u > TITLE.u0 && u < TITLE.u1) return ((u * 160) | 0) % 3 ? 25 : 200; // letras
+  if (v > TITLE.v0 && v < TITLE.v1 && u > TITLE.u0 && u < TITLE.u1) return letter(u); // letras
+  if (framed) {
+    const box = (u0, v0, u1, v1) => u > u0 && u < u1 && v > v0 && v < v1;
+    const ring = (u0, v0, u1, v1, t = 0.008) => box(u0, v0, u1, v1) && !box(u0 + t, v0 + t * 0.72, u1 - t, v1 - t * 0.72);
+    if (ring(0.075, 0.555, 0.925, 0.615) || ring(0.085, 0.62, 0.915, 0.925)) return 20;
+    if (box(0.1, 0.572, 0.33, 0.598) || box(SUBTYPE.u0, SUBTYPE.v0, SUBTYPE.u1, SUBTYPE.v1)) return letter(u);
+  }
   if (v > 0.035 && v < 0.105) return 205; // caixa do nome
   if (v > 0.115 && v < 0.55 && u > 0.08 && u < 0.92) {
     for (const b of blobs) if ((u - b.u) ** 2 + ((v - b.v) * 1.4) ** 2 < b.r * b.r) return b.c;
@@ -65,7 +79,7 @@ function invert3(m) {
 }
 
 /** Quadro cinza w×h com a carta nos cantos q, sobre uma mesa clara, com objetos de distração. */
-export function renderScene(w, h, q, { table = 225, clutter = true } = {}) {
+export function renderScene(w, h, q, { table = 225, clutter = true, framed = false } = {}) {
   const Hm = homography(q);
   const inv = invert3(Hm);
   const data = new Float32Array(w * h);
@@ -79,7 +93,7 @@ export function renderScene(w, h, q, { table = 225, clutter = true } = {}) {
         const u = (inv[0] * px + inv[1] * py + inv[2]) / z;
         const v = (inv[3] * px + inv[4] * py + inv[5]) / z;
         let c;
-        if (u >= 0 && u <= 1 && v >= 0 && v <= 1) c = cardColor(u, v);
+        if (u >= 0 && u <= 1 && v >= 0 && v <= 1) c = cardColor(u, v, framed);
         else if (clutter && py < h * 0.18) c = 70; // "notebook" ao fundo
         else if (clutter && px > w * 0.85 && py > h * 0.7) c = 120; // mão/objeto no canto
         else c = table + 6 * Math.sin(px * 0.11) * Math.cos(py * 0.07);
@@ -92,9 +106,9 @@ export function renderScene(w, h, q, { table = 225, clutter = true } = {}) {
 }
 
 /** Caixa do nome como o OCR devolve: retângulo alinhado aos eixos, inflado (acentos/mana). */
-export function ocrTitleBox(q, inflate = 1.5) {
+export function ocrTitleBox(q, inflate = 1.5, box = TITLE) {
   const H = homography(q);
-  const pts = [[TITLE.u0, TITLE.v0], [TITLE.u1, TITLE.v0], [TITLE.u1, TITLE.v1], [TITLE.u0, TITLE.v1]].map(([u, v]) => project(H, u, v));
+  const pts = [[box.u0, box.v0], [box.u1, box.v0], [box.u1, box.v1], [box.u0, box.v1]].map(([u, v]) => project(H, u, v));
   const x0 = Math.min(...pts.map((p) => p.x));
   const x1 = Math.max(...pts.map((p) => p.x));
   const y0 = Math.min(...pts.map((p) => p.y));

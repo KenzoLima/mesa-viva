@@ -14,8 +14,15 @@ import { createWorker } from 'tesseract.js';
 const MODES = ['11', '3'];
 let readers = null;
 
+// Só o modelo de português: ele lê também os nomes em inglês (mesmo alfabeto, e o NameMatcher tira os
+// acentos e aceita erros), e cada leitura sai ~20% mais rápida que com inglês + português juntos, que
+// rodam os dois modelos nas palavras duvidosas. Também baixa e inicia um modelo só.
+// Medido num quadro de 1600 px com 4 cartas: 2,7 s contra 3,4 s, os mesmos 4 nomes lidos, e o inglês
+// sozinho inventava cartas ("When" virava "Who // What // When // Where // Why").
+const LANGS = ['por'];
+
 async function makeReader(psm) {
-  const worker = await createWorker(['eng', 'por'], 1);
+  const worker = await createWorker(LANGS, 1);
   await worker.setParameters({ tessedit_pageseg_mode: psm });
   return { worker, psm };
 }
