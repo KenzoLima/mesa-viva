@@ -31,11 +31,11 @@ Outros comandos:
 - `npm run build`: gera o site em `dist/`;
 - `npm run dev:http`: só o menu no PC, sem HTTPS.
 
-## Publicar de graça (GitHub Pages)
+## Publicar de graça (Vercel)
 
-O workflow `.github/workflows/web-pages.yml` publica o `web/` a cada push na `main`. Para ligar: **GitHub → Settings → Pages → Source: GitHub Actions**. O endereço fica `https://<usuário>.github.io/<repositório>/`, com HTTPS de verdade e sem aviso de certificado.
+O app é publicado na Vercel, com HTTPS de verdade e sem aviso de certificado. A configuração fica em `web/vercel.json` (`npm ci`, `npm run build`, saída em `dist/`). Para publicar, rode `vercel --prod` dentro da pasta `web/`.
 
-Atenção: no plano grátis, o Pages só publica repositório **público**.
+Antes de publicar, rode `npm test` e `npm run build` para conferir que está tudo certo.
 
 ## Primeiros passos do modo Cartas
 
