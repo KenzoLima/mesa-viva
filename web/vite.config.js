@@ -11,6 +11,6 @@ export default defineConfig(({ mode }) => ({
   build: {
     target: 'es2022',
     chunkSizeWarningLimit: 4000,
-    rollupOptions: { input: { main: 'index.html', compilar: 'compilar.html' } },
+    rollupOptions: { input: { main: 'index.html', compilar: 'compilar.html', bestiario3d: 'bestiario3d.html' } },
   },
 }));

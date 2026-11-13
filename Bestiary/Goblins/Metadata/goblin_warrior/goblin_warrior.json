@@ -1,0 +1,163 @@
+{
+  "id": "goblin_warrior",
+  "name": "Goblin Guerreiro",
+  "tribe": "Goblins",
+  "description": "Saqueador das ruínas: pele cor de musgo, olhos amarelos acesos, elmo de panela enferrujada, facão lascado e um escudo de tábuas. Pequeno, curvado e rápido.",
+  "size_category": "pequena",
+  "height_m": 1.17,
+  "bounds_m": {
+    "width_x": 0.72,
+    "height_y": 1.16,
+    "length_z": 0.53
+  },
+  "triangles": 981,
+  "triangle_budget": [
+    500,
+    1500
+  ],
+  "within_budget": true,
+  "materials": [
+    "BST_bone",
+    "BST_cloth",
+    "BST_glow_yellow",
+    "BST_gold",
+    "BST_leather",
+    "BST_matte",
+    "BST_metal_dark",
+    "BST_skin"
+  ],
+  "bones": 20,
+  "bone_names": [
+    "root",
+    "hips",
+    "spine",
+    "chest",
+    "neck",
+    "head",
+    "upper_arm.L",
+    "forearm.L",
+    "hand.L",
+    "weapon.L",
+    "upper_arm.R",
+    "forearm.R",
+    "hand.R",
+    "weapon.R",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+  ],
+  "animations": [
+    {
+      "name": "Idle",
+      "duration": 2.4,
+      "loop": true,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Walk",
+      "duration": 0.7,
+      "loop": true,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Run",
+      "duration": 0.44,
+      "loop": true,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Attack",
+      "duration": 0.55,
+      "loop": false,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Hit",
+      "duration": 0.5,
+      "loop": false,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Death",
+      "duration": 1.7,
+      "loop": false,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Dodge",
+      "duration": 0.6,
+      "loop": false,
+      "fps": 24,
+      "root_motion": false
+    }
+  ],
+  "variants": [
+    "goblin_archer (trocar facão/escudo por arco)",
+    "goblin_shaman (cajado, sem elmo)",
+    "goblin_scrap_armor (placas extras)",
+    "goblin_chief (escala 1.25, elmo com chifres)"
+  ],
+  "sockets": [
+    "weapon.R",
+    "weapon.L"
+  ],
+  "files": {
+    "model": "Models/goblin_warrior/goblin_warrior.glb",
+    "lods": [
+      {
+        "lod": 0,
+        "file": "Models/goblin_warrior/goblin_warrior.glb",
+        "triangles": 981,
+        "bytes": 206780
+      },
+      {
+        "lod": 1,
+        "file": "Models/goblin_warrior/goblin_warrior_LOD1.glb",
+        "triangles": 769,
+        "bytes": 185004
+      },
+      {
+        "lod": 2,
+        "file": "Models/goblin_warrior/goblin_warrior_LOD2.glb",
+        "triangles": 549,
+        "bytes": 151444
+      }
+    ],
+    "blend": null,
+    "palette": "Textures/goblin_warrior/goblin_warrior_palette.png",
+    "materials": "Materials/goblin_warrior/goblin_warrior_materials.json",
+    "animations": "Animations/goblin_warrior/goblin_warrior_animations.json",
+    "renders": [
+      "Renders/goblin_warrior/goblin_warrior_sheet.png",
+      "Renders/goblin_warrior/goblin_warrior_animations.png",
+      "Renders/goblin_warrior/goblin_warrior_front.png",
+      "Renders/goblin_warrior/goblin_warrior_side.png",
+      "Renders/goblin_warrior/goblin_warrior_back.png",
+      "Renders/goblin_warrior/goblin_warrior_threequarter.png",
+      "Renders/goblin_warrior/goblin_warrior_wireframe.png",
+      "Renders/goblin_warrior/goblin_warrior_materials.png",
+      "Renders/goblin_warrior/goblin_warrior_scale.png"
+    ]
+  },
+  "export": {
+    "format": "GLB (glTF 2.0)",
+    "units": "meters",
+    "up_axis": "+Y",
+    "forward_axis": "+Z",
+    "shading": "flat (normais por face)",
+    "color": "COLOR_0 por vértice, sem texturas",
+    "skinning": "JOINTS_0/WEIGHTS_0, até 2 influências",
+    "generator": "tools/bestiary/build.py",
+    "verified": "estrutura relida do disco por verify_glb()",
+    "notes": "Animações sem root motion. Extras: Dodge."
+  }
+}

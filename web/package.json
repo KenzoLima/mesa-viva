@@ -8,6 +8,7 @@
     "sync-data": "python ../tools/sync_web_data.py",
     "dev": "vite --host",
     "dev:http": "vite --mode http --port 5180",
+    "dev:bestiario": "vite --mode http --port 5181 --strictPort",
     "build": "vite build",
     "preview": "vite preview --host",
     "test": "node --test \"tests/**/*.test.js\""

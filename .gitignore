@@ -169,3 +169,7 @@ test-videos/
 *.csr
 *.pem
 *.mobileprovision
+
+# Python
+__pycache__/
+*.pyc

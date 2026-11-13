@@ -1,0 +1,78 @@
+[
+  {
+    "name": "BST_bone",
+    "metallic": 0.0,
+    "roughness": 0.55,
+    "emissive": null,
+    "doubleSided": false,
+    "baseColor": "COLOR_0 (cor por vértice, linear)"
+  },
+  {
+    "name": "BST_cloth",
+    "metallic": 0.0,
+    "roughness": 1.0,
+    "emissive": null,
+    "doubleSided": true,
+    "baseColor": "COLOR_0 (cor por vértice, linear)"
+  },
+  {
+    "name": "BST_glow_red",
+    "metallic": 0.0,
+    "roughness": 1.0,
+    "emissive": [
+      1.0,
+      0.1,
+      0.06
+    ],
+    "doubleSided": true,
+    "baseColor": "COLOR_0 (cor por vértice, linear)"
+  },
+  {
+    "name": "BST_gold",
+    "metallic": 0.9,
+    "roughness": 0.38,
+    "emissive": null,
+    "doubleSided": false,
+    "baseColor": "COLOR_0 (cor por vértice, linear)"
+  },
+  {
+    "name": "BST_leather",
+    "metallic": 0.0,
+    "roughness": 0.8,
+    "emissive": null,
+    "doubleSided": false,
+    "baseColor": "COLOR_0 (cor por vértice, linear)"
+  },
+  {
+    "name": "BST_matte",
+    "metallic": 0.0,
+    "roughness": 0.9,
+    "emissive": null,
+    "doubleSided": false,
+    "baseColor": "COLOR_0 (cor por vértice, linear)"
+  },
+  {
+    "name": "BST_metal",
+    "metallic": 0.85,
+    "roughness": 0.42,
+    "emissive": null,
+    "doubleSided": false,
+    "baseColor": "COLOR_0 (cor por vértice, linear)"
+  },
+  {
+    "name": "BST_metal_dark",
+    "metallic": 0.8,
+    "roughness": 0.6,
+    "emissive": null,
+    "doubleSided": false,
+    "baseColor": "COLOR_0 (cor por vértice, linear)"
+  },
+  {
+    "name": "BST_skin",
+    "metallic": 0.0,
+    "roughness": 0.75,
+    "emissive": null,
+    "doubleSided": false,
+    "baseColor": "COLOR_0 (cor por vértice, linear)"
+  }
+]

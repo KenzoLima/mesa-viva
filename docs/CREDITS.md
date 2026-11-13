@@ -49,3 +49,4 @@ Regras:
 Os dados e as imagens das cartas vêm do [Scryfall](https://scryfall.com/docs/api). Magic: The Gathering é propriedade da Wizards of the Coast.
 Este é um projeto de fã, gratuito e não comercial, dentro da [Fan Content Policy](https://company.wizards.com/en/legal/fancontentpolicy).
 Não é aprovado nem endossado pela Wizards.
+| Bestiário low-poly (dragon_red, elf_warrior, goblin_warrior, vampire_lord) | Bestiary/ · web/public/models/bestiary/ | Projeto Mesa Viva (gerado por `tools/bestiary/build.py`) | — | Original do projeto | Protótipos da Etapa 1; modelos procedurais com esqueleto, animações e LODs |
