@@ -316,16 +316,50 @@
   scrollbar-color: rgba(70, 48, 16, 0.5) transparent;
 }
 #menu #results li {
-  display: grid;
-  gap: 1px;
-  padding: 8px 2px;
+  padding: 0;
   border-bottom: 1px solid rgba(70, 48, 16, 0.3);
   box-shadow: 0 1px 0 rgba(255, 244, 210, 0.45);
 }
 #menu #results li:last-child { border-bottom: 0; box-shadow: none; }
+/* Cada carta é um botão: abre a criatura em 3D */
+#menu #results .card-row {
+  display: grid;
+  gap: 1px;
+  width: 100%;
+  padding: 8px 26px 8px 2px;
+  border: 0;
+  background: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+#menu #results .card-row::after {
+  content: "›";
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  translate: 0 -50%;
+  font: 700 1.4rem/1 var(--serif);
+  color: rgba(70, 48, 16, 0.55);
+}
+#menu #results .card-row:active { background: rgba(88, 60, 20, 0.12); }
+#menu #results .card-row:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
 #menu #results strong { font: 700 1rem/1.25 var(--serif); color: var(--ink); }
+#menu #results .alt { font-size: 0.82rem; color: var(--ink-soft); }
+#menu #results .alt:empty { display: none; }
 #menu #results .type { font-size: 0.84rem; font-style: italic; color: var(--ink-soft); }
 #menu #results .model { font-size: 0.86rem; color: #6a4410; }
+#menu #results .empty { padding: 14px 2px; font-style: italic; color: var(--ink-soft); }
+#menu .results-title {
+  margin: -2px 0 -6px;
+  font: 600 0.72rem/1.2 var(--serif);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
 
 /* ---------- Navegação entre as três telas ---------- */
 #menu .tabs {
@@ -426,7 +460,7 @@
   #menu .frame-foot { min-height: 24px; }
   #menu .frame-foot small { font-size: 0.6rem; }
   #menu .frame-pt { margin-top: -12px; min-width: 52px; padding: 3px 10px; font-size: 1rem; }
-  #menu #results li { padding: 6px 2px; }
+  #menu #results .card-row { padding-top: 6px; padding-bottom: 6px; }
   /* coluna da estante é estreita: a contagem desce para a linha de baixo */
   #menu [data-screen="library"] .frame-type { flex-wrap: wrap; row-gap: 0; padding-top: 4px; padding-bottom: 4px; }
   #menu [data-screen="library"] .frame-type small { white-space: nowrap; }
@@ -480,7 +514,7 @@
     align-content: start;
     column-gap: 22px;
   }
-  #menu #results li { padding: 10px 2px; }
+  #menu #results .card-row { padding-top: 10px; padding-bottom: 10px; }
   #menu #results li:last-child { border-bottom: 1px solid rgba(70, 48, 16, 0.3); box-shadow: 0 1px 0 rgba(255, 244, 210, 0.45); }
   #menu #results strong { font-size: 1.08rem; }
 

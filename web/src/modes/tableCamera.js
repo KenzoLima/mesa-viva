@@ -65,18 +65,29 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, onEnd 
   view.prepend(video, marks);
 
   ui.status.textContent = 'Abrindo a câmera…';
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: false,
-    // 4K quando der: na mesa as cartas do lado de lá aparecem pequenas, e o nome só é lido com resolução.
-    video: { facingMode: { ideal: 'environment' }, width: { ideal: 3840 }, height: { ideal: 2160 } },
-  });
-  video.srcObject = stream;
-  await video.play();
-  for (let i = 0; i < 50 && !video.videoWidth; i++) await new Promise((r) => setTimeout(r, 100));
+  let stream = null;
+  let renderer;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      // 4K quando der: na mesa as cartas do lado de lá aparecem pequenas, e o nome só é lido com resolução.
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 3840 }, height: { ideal: 2160 } },
+    });
+    video.srcObject = stream;
+    await video.play();
+    for (let i = 0; i < 50 && !video.videoWidth; i++) await new Promise((r) => setTimeout(r, 100));
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  } catch (err) {
+    // Falhou depois de abrir a câmera (vídeo não tocou, sem WebGL): não deixa a câmera ligada nem o
+    // vídeo na página, senão eles se acumulam a cada tentativa.
+    stream?.getTracks().forEach((t) => t.stop());
+    video.remove();
+    marks.remove();
+    throw err;
+  }
   const VW = video.videoWidth;
   const VH = video.videoHeight;
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.shadowMap.enabled = true;
