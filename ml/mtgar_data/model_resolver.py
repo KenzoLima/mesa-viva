@@ -6,7 +6,8 @@ exatamente as mesmas regras (e os mesmos testes) para o arquivo valer nos dois l
 Prioridade para criaturas:
   1. override do usuário (por oracle_id)
   2. byOracleId (cartas "hero")
-  3. subtipo direto (raças antes de classes)
+  3. raça + classe com modelo próprio (byRaceClass: "Human Knight" -> cavaleiro)
+     e depois subtipo direto (raças antes de classes)
   4. família de subtipos (Wolf/Hound/Dog -> canino)
   5. keyword (Flying -> alado)
   6. tipo de carta da criatura (Artifact -> golem)
@@ -86,6 +87,12 @@ class ModelResolver:
         # Raças antes de classes: em "Elf Druid" vale o Elfo, em "Human Wizard" vale o Humano.
         ordered = [s for s in card.subtypes if s not in self._classes]
         ordered += [s for s in card.subtypes if s in self._classes]
+        # Raça + classe com modelo próprio ("Human Knight" -> cavaleiro) vence a raça sozinha.
+        by_race_class = self.map.get("byRaceClass", {})
+        for race in [s for s in card.subtypes if s not in self._classes and s in by_race_class]:
+            for cls in [s for s in card.subtypes if s in self._classes]:
+                if cls in by_race_class[race]:
+                    return choice(by_race_class[race][cls], f"subtipo {race} {cls}")
         by_subtype = self.map.get("bySubtype", {})
         for subtype in ordered:
             if subtype in by_subtype:

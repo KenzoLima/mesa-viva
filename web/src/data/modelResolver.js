@@ -55,6 +55,13 @@ export class ModelResolver {
       ...card.subtypes.filter((s) => !this.classes.has(s)),
       ...card.subtypes.filter((s) => this.classes.has(s)),
     ];
+    // Raça + classe com modelo próprio ("Human Knight" -> cavaleiro) vence a raça sozinha.
+    const byRaceClass = this.map.byRaceClass ?? {};
+    for (const race of card.subtypes.filter((s) => !this.classes.has(s) && s in byRaceClass)) {
+      for (const cls of card.subtypes.filter((s) => this.classes.has(s))) {
+        if (cls in byRaceClass[race]) return pick(byRaceClass[race][cls], `subtipo ${race} ${cls}`);
+      }
+    }
     const bySubtype = this.map.bySubtype ?? {};
     for (const s of ordered) if (s in bySubtype) return pick(bySubtype[s], `subtipo ${s}`);
     for (const s of ordered) {

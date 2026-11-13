@@ -12,7 +12,7 @@ def pick(db, resolver, name):
     [
         ("Llanowar Elves", "bestiary/elf_warrior", "subtipo Elf"),          # Elf (raça) vence Druid (classe)
         ("Goblin Guide", "bestiary/goblin_warrior", "subtipo Goblin"),       # Goblin vence Scout
-        ("Delver of Secrets", "human", "subtipo Human"),    # Human vence Wizard
+        ("Delver of Secrets", "bestiary/human_soldier", "subtipo Human"),    # Human vence Wizard
         ("Jötun Grunt", "giant", "subtipo Giant"),          # Giant vence Soldier
         ("Grizzly Bears", "beast", "família beast (Bear)"),
         ("Progenitus", "lizard", "família reptile (Hydra)"),
@@ -25,6 +25,15 @@ def pick(db, resolver, name):
 def test_creature_priorities(db, resolver, name, model, reason):
     choice = pick(db, resolver, name)
     assert (choice.model_id, choice.kind, choice.reason) == (model, CREATURE, reason)
+
+
+def test_race_class_beats_race(db, resolver):
+    # byRaceClass: "Human Knight" -> cavaleiro. As fixtures não têm cavaleiro: usa o Human Wizard.
+    delver = db.lookup("Delver of Secrets")[0]
+    mapped = ModelResolver({**resolver.map, "byRaceClass": {"Human": {"Wizard": "human_wizard"}}})
+    choice = mapped.resolve(delver)
+    assert (choice.model_id, choice.reason) == ("human_wizard", "subtipo Human Wizard")
+    assert resolver.map["byRaceClass"]["Human"]["Knight"] == "bestiary/human_knight"
 
 
 def test_oracle_override_and_user_override_win(db, resolver):

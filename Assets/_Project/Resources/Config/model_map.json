@@ -14,6 +14,11 @@
     "winged": "Criatura alada",
     "bestiary/dragon_red": "Dragão Vermelho", "bestiary/elf_warrior": "Elfo Guerreiro",
     "bestiary/goblin_warrior": "Goblin Guerreiro", "bestiary/vampire_lord": "Lorde Vampiro",
+    "bestiary/angel_warrior": "Anjo Guerreiro", "bestiary/demon_brute": "Demônio Bruto",
+    "bestiary/human_knight": "Cavaleiro Humano", "bestiary/human_soldier": "Soldado Humano",
+    "bestiary/orc_berserker": "Orc Berserker", "bestiary/skeleton_warrior": "Esqueleto Guerreiro",
+    "bestiary/spider_giant": "Aranha Gigante", "bestiary/wolf_shadow": "Lobo das Sombras",
+    "bestiary/zombie_shambler": "Zumbi Errante",
     "terrain_plains": "Bioma: planície", "terrain_water": "Bioma: água", "terrain_swamp": "Bioma: pântano",
     "terrain_mountain": "Bioma: montanha", "terrain_forest": "Bioma: floresta", "terrain_wasteland": "Bioma: ermo",
     "hero_planeswalker": "Herói planeswalker", "prop_battle": "Objeto: batalha", "prop_artifact": "Objeto: artefato",
@@ -24,22 +29,22 @@
 
   "bySubtype": {
     "Goblin": "bestiary/goblin_warrior",
-    "Orc": "orc",
+    "Orc": "bestiary/orc_berserker",
     "Elf": "bestiary/elf_warrior",
-    "Human": "human",
+    "Human": "bestiary/human_soldier",
     "Dwarf": "dwarf",
     "Merfolk": "merfolk",
     "Vampire": "bestiary/vampire_lord",
-    "Zombie": "zombie",
-    "Skeleton": "skeleton",
-    "Angel": "angel",
-    "Demon": "demon",
-    "Devil": "demon",
+    "Zombie": "bestiary/zombie_shambler",
+    "Skeleton": "bestiary/skeleton_warrior",
+    "Angel": "bestiary/angel_warrior",
+    "Demon": "bestiary/demon_brute",
+    "Devil": "bestiary/demon_brute",
     "Dragon": "bestiary/dragon_red",
     "Giant": "giant",
     "Golem": "golem",
     "Construct": "golem",
-    "Spider": "spider",
+    "Spider": "bestiary/spider_giant",
     "Slime": "slime",
     "Ooze": "slime",
     "Bat": "bat",
@@ -50,8 +55,12 @@
     "Spirit": "ghost",
     "Wizard": "wizard",
     "Warrior": "warrior",
-    "Knight": "knight",
-    "Soldier": "soldier"
+    "Knight": "bestiary/human_knight",
+    "Soldier": "bestiary/human_soldier"
+  },
+
+  "byRaceClass": {
+    "Human": { "Knight": "bestiary/human_knight" }
   },
 
   "classSubtypes": [
@@ -61,15 +70,15 @@
   ],
 
   "families": {
-    "canine": { "model": "wolf", "subtypes": ["Wolf", "Hound", "Dog", "Jackal", "Fox", "Werewolf"] },
+    "canine": { "model": "bestiary/wolf_shadow", "subtypes": ["Wolf", "Hound", "Dog", "Jackal", "Fox", "Werewolf"] },
     "feline": { "model": "cat", "subtypes": ["Cat", "Lion"] },
     "bird": { "model": "bird", "subtypes": ["Bird", "Phoenix", "Griffin", "Harpy"] },
     "reptile": { "model": "lizard", "subtypes": ["Lizard", "Snake", "Crocodile", "Salamander", "Wurm", "Hydra", "Drake", "Dinosaur"] },
     "beast": { "model": "beast", "subtypes": ["Beast", "Bear", "Boar", "Ox", "Elk", "Rhino", "Elephant", "Ape"] },
-    "insect": { "model": "spider", "subtypes": ["Insect", "Scorpion"] },
+    "insect": { "model": "bestiary/spider_giant", "subtypes": ["Insect", "Scorpion"] },
     "sea": { "model": "fish", "subtypes": ["Fish", "Kraken", "Leviathan", "Octopus", "Serpent", "Whale", "Crab", "Shark"] },
-    "horror": { "model": "demon", "subtypes": ["Horror", "Nightmare", "Eldrazi"] },
-    "undead": { "model": "skeleton", "subtypes": ["Wraith", "Shade", "Specter"] },
+    "horror": { "model": "bestiary/demon_brute", "subtypes": ["Horror", "Nightmare", "Eldrazi"] },
+    "undead": { "model": "bestiary/skeleton_warrior", "subtypes": ["Wraith", "Shade", "Specter"] },
     "faerie": { "model": "fairy", "subtypes": ["Faerie", "Sprite"] }
   },
 

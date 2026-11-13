@@ -66,6 +66,8 @@ namespace MtgAr.Data
         {
             var models = new List<string>();
             void Add(string id) { if (!string.IsNullOrEmpty(id) && !models.Contains(id)) models.Add(id); }
+            foreach (var race in Dict("byRaceClass").Values)
+                foreach (var value in Strings((Dictionary<string, object>)race).Values) Add(value);
             foreach (var value in Strings(Dict("bySubtype")).Values) Add(value);
             foreach (var spec in Dict("families").Values) Add((string)((Dictionary<string, object>)spec)["model"]);
             foreach (var value in Strings(Dict("byKeyword")).Values) Add(value);
@@ -103,6 +105,15 @@ namespace MtgAr.Data
 
             var ordered = card.Subtypes.Where(s => !classSubtypes.Contains(s))
                 .Concat(card.Subtypes.Where(s => classSubtypes.Contains(s))).ToList();
+            // Raça + classe com modelo próprio ("Human Knight" -> cavaleiro) vence a raça sozinha.
+            var byRaceClass = Dict("byRaceClass");
+            foreach (var race in card.Subtypes.Where(s => !classSubtypes.Contains(s) && byRaceClass.ContainsKey(s)))
+            {
+                var classes = Strings(Dict(byRaceClass, race));
+                foreach (var cls in card.Subtypes.Where(s => classSubtypes.Contains(s)))
+                    if (classes.TryGetValue(cls, out var raceClassModel))
+                        return Choice(raceClassModel, $"subtipo {race} {cls}");
+            }
             var bySubtype = Strings(Dict("bySubtype"));
             foreach (var subtype in ordered)
                 if (bySubtype.TryGetValue(subtype, out var model))
