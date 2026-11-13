@@ -28,12 +28,51 @@ export class TableFrame {
     return new TableFrame(center, away, width, depth);
   }
 
+  /** Lado do jogador em relação à câmera (botões "De que lado você está?"), como TableFrame.ForSeat. */
+  static forSeat(seat, center, cameraPos, width, depth) {
+    const frame = TableFrame.fromTap(center, cameraPos, width, depth);
+    return frame.rotatedBy(SEAT_ROTATION[seat] ?? 0);
+  }
+
   scaled(factor) {
     return new TableFrame(this.center, this.forward, DEFAULT_WIDTH * factor, DEFAULT_DEPTH * factor);
   }
 
   recentered(center) {
     return new TableFrame(center, this.forward, this.width, this.depth);
+  }
+
+  /** Gira a frente em torno da vertical, no sentido horário visto de cima (igual ao RotatedBy do Unity). */
+  rotatedBy(degrees) {
+    const a = (degrees * Math.PI) / 180;
+    const c = Math.cos(a);
+    const s = Math.sin(a);
+    const f = this.forward;
+    const r = this.right;
+    return new TableFrame(this.center, { x: f.x * c + r.x * s, y: 0, z: f.z * c + r.z * s }, this.width, this.depth);
+  }
+
+  flipped() {
+    return this.rotatedBy(180);
+  }
+
+  /** Mesma mesa, com a frente apontando para `direction` (alça de rotação). */
+  withForward(direction) {
+    if (Math.hypot(direction.x, direction.z) < 1e-4) return this;
+    return new TableFrame(this.center, direction, this.width, this.depth);
+  }
+
+  /** Ponto onde um raio (origem + direção) cruza o plano da mesa, ou null. */
+  raycast(origin, direction) {
+    if (Math.abs(direction.y) < 1e-6) return null;
+    const t = (this.center.y - origin.y) / direction.y;
+    if (t < 0) return null;
+    return { x: origin.x + direction.x * t, y: this.center.y, z: origin.z + direction.z * t };
+  }
+
+  /** Posição da alça de rotação: além da borda do oponente. */
+  handlePosition(offset = 0.07) {
+    return this.tableToWorld({ x: 0, y: this.depth / 2 + offset });
   }
 
   /** Coordenadas na mesa: x = direita, y = frente (metros a partir do centro). */
@@ -76,6 +115,26 @@ export class TableFrame {
   }
 }
 
+/** De que lado da mesa o jogador está, visto pela câmera (PlayerSeat do Unity). */
+export const Seat = Object.freeze({
+  NearCamera: 'near',
+  FarFromCamera: 'far',
+  CameraLeft: 'left',
+  CameraRight: 'right',
+});
+const SEAT_ROTATION = { near: 0, far: 180, left: 90, right: -90 };
+
+/**
+ * Altura da criatura na mesa (PLANO §5.4): base de 7 cm vezes um fator de poder
+ * (poder 1 → 0,8×, 7 ou mais → 1,6×). Sem poder numérico (*, X, não-criatura) fica 1×.
+ */
+export function creatureHeight(power, base = 0.07) {
+  const p = Number.parseFloat(power);
+  if (!Number.isFinite(p)) return base;
+  const k = Math.min(1, Math.max(0, (p - 1) / 6));
+  return base * (0.8 + 0.8 * k);
+}
+
 export const State = Object.freeze({
   Scanning: 'scanning',
   NoTableHint: 'noTableHint',
@@ -86,10 +145,11 @@ export const State = Object.freeze({
 
 /**
  * Scanning ──(achou plano)──► AwaitingCenterTap ──(toque)──► Adjusting ──(confirm)──► Confirmed
- *    │ 15 s sem plano                                            ▲                        │
- *    ▼                                                           └──── recalibrate ───────┘
- * NoTableHint ──(achou plano)──► AwaitingCenterTap
- * Com o rastreamento perdido, nada avança e toques são ignorados.
+ *    │ 15 s sem plano  ▲                ▲                                                  │
+ *    ▼                 │ retryScan      └──── recalibrate (mesa ainda conhecida) ──────────┤
+ * NoTableHint ─────────┘                                                                   │
+ *    └──(achou plano)──► AwaitingCenterTap      Scanning ◄── recalibrate (mesa perdida) ───┘
+ * Com o rastreamento perdido, nada avança, o tempo não conta e toques são ignorados.
  */
 export class CalibrationStateMachine {
   constructor(noTableTimeoutSeconds = 15, onChange = () => {}) {
@@ -98,17 +158,22 @@ export class CalibrationStateMachine {
     this.timeout = noTableTimeoutSeconds;
     this.scanSeconds = 0;
     this.onChange = onChange;
+    this.onTrackingLost = null;
   }
 
   #go(next) {
     if (next === this.state) return;
     const prev = this.state;
     this.state = next;
+    if (next === State.Scanning) this.scanSeconds = 0;
     this.onChange(prev, next);
   }
 
   tick(dt, tableFound, trackingOk) {
-    this.trackingLost = !trackingOk;
+    if (this.trackingLost === trackingOk) {
+      this.trackingLost = !trackingOk;
+      this.onTrackingLost?.(this.trackingLost);
+    }
     if (this.trackingLost) return;
     if (this.state === State.Scanning || this.state === State.NoTableHint) {
       if (tableFound) return this.#go(State.AwaitingCenterTap);
@@ -130,14 +195,93 @@ export class CalibrationStateMachine {
   }
 
   confirm() {
-    if (this.state !== State.Adjusting) return false;
+    if (this.trackingLost || this.state !== State.Adjusting) return false;
     this.#go(State.Confirmed);
     return true;
   }
 
-  recalibrate() {
-    if (this.state !== State.Confirmed) return false;
-    this.#go(State.Adjusting);
+  /** Volta ao começo. Se a mesa ainda é conhecida, pula direto para o toque no centro. */
+  recalibrate(tableStillKnown = true) {
+    this.scanSeconds = 0;
+    this.#go(tableStillKnown ? State.AwaitingCenterTap : State.Scanning);
     return true;
   }
+
+  /** Botão "Tentar de novo" da dica de mesa não encontrada. */
+  retryScan() {
+    this.scanSeconds = 0;
+    if (this.state === State.NoTableHint) this.#go(State.Scanning);
+  }
+}
+
+/**
+ * Histerese de um sinal booleano (TrackingStatusFilter do Unity): o valor novo só vale depois de
+ * persistir por `holdSeconds`, para o aviso não piscar com variações de um quadro.
+ * A primeira leitura vale na hora. update() retorna true quando o valor estável mudou.
+ */
+export class StableFlag {
+  constructor(holdSeconds = 0.6) {
+    this.hold = holdSeconds;
+    this.value = null;
+    this.candidate = null;
+    this.seconds = 0;
+  }
+
+  update(raw, dt) {
+    if (this.value === null) {
+      this.value = raw;
+      this.candidate = raw;
+      return true;
+    }
+    if (raw !== this.candidate) {
+      this.candidate = raw;
+      this.seconds = 0;
+    }
+    if (raw === this.value) return false;
+    this.seconds += dt;
+    if (this.seconds < this.hold) return false;
+    this.value = raw;
+    return true;
+  }
+}
+
+/**
+ * Progresso da busca pela mesa (0..1), como o ScanProgress do Unity.
+ * Com detecção de planos: área do maior plano horizontal / área mínima.
+ * Sem ela (só hit-test): enche enquanto o anel acerta uma superfície horizontal e esvazia devagar sem acerto.
+ */
+export class ScanProgress {
+  constructor(minArea = 0.15, fillSeconds = 1.2) {
+    this.minArea = minArea;
+    this.fillSeconds = fillSeconds;
+    this.hitProgress = 0;
+    this.value = 0;
+  }
+
+  update(dt, { hasHit, planeArea = null }) {
+    this.hitProgress = Math.min(1, Math.max(0, this.hitProgress + (hasHit ? dt / this.fillSeconds : -dt / (this.fillSeconds * 3))));
+    const planeProgress = planeArea === null ? 0 : Math.min(1, planeArea / this.minArea);
+    this.value = Math.max(this.hitProgress, planeProgress);
+    return this.value;
+  }
+
+  get found() {
+    return this.value >= 1;
+  }
+
+  reset() {
+    this.hitProgress = 0;
+    this.value = 0;
+  }
+}
+
+/** Área de um polígono no plano XZ (pontos {x, z}), para medir os planos detectados. */
+export function polygonAreaXZ(points) {
+  let a = 0;
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    const q = points[(i + 1) % points.length];
+    a += p.x * q.z - q.x * p.z;
+  }
+  return Math.abs(a) / 2;
 }

@@ -113,6 +113,8 @@ $('xr-search').addEventListener('input', (e) => {
   if (e.target.value.trim().length >= 2) fillCardOptions(catalog.search(e.target.value, 30));
 });
 
+// table.js já foi importado lá em cima (isTableModeSupported): o import abaixo resolve na hora,
+// e o pedido da sessão de RA ainda conta como resposta ao toque.
 $('btn-table').addEventListener('click', async () => {
   const { startTableMode } = await import('./modes/table.js');
   const overlay = $('xr-overlay');
@@ -123,9 +125,15 @@ $('btn-table').addEventListener('click', async () => {
       ui: {
         overlay,
         status: $('xr-status'),
+        progress: $('xr-progress'),
+        adjust: $('xr-adjust'),
+        rotate: $('xr-rotate'),
+        flip: $('xr-flip'),
+        seats: [...overlay.querySelectorAll('[data-seat]')],
         sizeRow: $('xr-size-row'),
         size: $('xr-size'),
         confirm: $('xr-confirm'),
+        retry: $('xr-retry'),
         recalibrate: $('xr-recalibrate'),
         cardSelect: $('xr-card'),
         exit: $('xr-exit'),
