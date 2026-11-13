@@ -5,10 +5,11 @@ O Mesa Viva no navegador. Não precisa de loja, conta da Apple nem build nativo.
 | Modo | Tecnologia | Onde roda | O que faz |
 |---|---|---|---|
 | **Cartas** | MindAR (rastreamento de imagem) + Three.js | iPhone (Safari) e Android (Chrome) | Reconhece a carta e faz a criatura surgir em cima dela |
-| **Mesa** | WebXR `immersive-ar` + `hit-test` (ARCore) | Android (Chrome) | Detecta o plano da mesa, calibra a área de jogo e invoca criaturas onde você toca |
+| **Mesa (RA)** | WebXR `immersive-ar` + `hit-test` (ARCore) | Android (Chrome) | Detecta o plano da mesa, calibra a área de jogo e invoca criaturas onde você toca |
+| **Mesa com câmera parada** | câmera + calibração por uma folha A4 (homografia) + Three.js | PC (webcam), iPhone, qualquer Android | A câmera fica num suporte; você marca os 4 cantos de uma folha na mesa e invoca criaturas onde clicar |
 | **Bestiário** | catálogo + `ModelResolver` | qualquer navegador | Mostra qual modelo cada carta usa e por quê |
 
-O Safari do iPhone não tem WebXR. Por isso o modo Mesa fica só no Android, e o iPhone usa o modo Cartas.
+O Safari do iPhone e os navegadores de PC não têm WebXR com RA. Neles o botão **Mesa** abre a versão com câmera parada.
 
 ## Rodar no PC e testar no celular
 
@@ -57,6 +58,21 @@ Recursos do WebXR usados: `hit-test` (obrigatório) e, quando o aparelho dá, `d
 - [ ] Ao cobrir a câmera, aparece "Rastreamento perdido". Ao descobrir, volta sozinho.
 - [ ] Numa mesa lisa e branca, depois de ~15 s aparece "Não encontrei a mesa".
 
+## Mesa com câmera parada (PC, iPhone, Android sem ARCore)
+
+Sem WebXR o app não sabe onde a câmera está. Então a câmera fica **parada** (webcam do PC ou celular num suporte, apontada para a mesa de cima e de lado, como no `docs/PLANO.md` §2) e a mesa é calibrada por um retângulo de tamanho conhecido:
+
+1. Ponha uma **folha A4** no centro da mesa e toque (ou clique) nos **4 cantos** dela, em qualquer ordem. O lado de cima da imagem é o do oponente.
+2. O "imã" encaixa cada canto na borda real do papel (precisão abaixo de 1 pixel) e o app calcula a posição da câmera e a abertura da lente. Ele descobre sozinho se a folha está em pé ou deitada.
+3. Ajuste como no modo RA: arraste os cantos dourados se algum ficou fora, mova ou gire a área, "Girar 90°", "Trocar lados", lado do jogador e tamanho. **Confirmar** e pode tirar a folha da mesa.
+4. Clique na mesa para invocar a criatura escolhida, com sombra e altura pelo poder.
+
+Em **Referência** dá para trocar a folha A4 por folha carta (EUA), **playmat** (61 × 35 cm, o mais preciso) ou uma carta. Uma carta sozinha é pequena demais: um erro de 1 pixel no canto vira dezenas de pixels na borda da área. A folha A4, com o "imã", fica em poucos pixels.
+
+Se a câmera levar um esbarrão (girar ou inclinar ~1–2° ou mais), aparece "A câmera se mexeu": recoloque a folha e toque em **Recalibrar** para marcar os cantos de novo. Mãos, cartas novas e a folha tirada da mesa não disparam o aviso, porque o app compara só as bordas que continuam no lugar. Limitações: mover a câmera de lado mantendo a mira no mesmo ponto passa despercebido, e numa mesa lisa e vazia (sem bordas) o aviso fica desligado.
+
+A matemática fica em `src/table/cameraPose.js` (homografia, focal pelo método de Zhang, pose, "imã", câmera mexida), com testes em `tests/cameraPose.test.js`. O desenho da mesa é o mesmo do modo RA (`src/table/tableVisuals.js`).
+
 ## Publicar de graça (Vercel)
 
 O app é publicado na Vercel, com HTTPS de verdade e sem aviso de certificado. A configuração fica em `web/vercel.json` (`npm ci`, `npm run build`, saída em `dist/`). Para publicar, rode `vercel --prod` dentro da pasta `web/`.
@@ -103,7 +119,9 @@ Mudou o `model_map.json`? Rode `npm run sync-data`. O CI confere com `--check`.
 | `src/data/catalog.js` | `Data/CardCatalog.cs` | `scripts/export_app_catalog.py` (gera) |
 | `src/data/modelResolver.js` | `Data/ModelResolver.cs` | `mtgar_data/model_resolver.py` (referência) |
 | `src/table/tableFrame.js` | `Table/TableFrame.cs`, `Table/TableCalibrationStateMachine.cs`, `Table/TrackingStatus.cs` (histerese) | — |
-| `src/modes/table.js` | `Table/TableCalibrationController.cs`, `TableAreaVisualizer.cs`, `PlaneScanVisualizer.cs`, `UI/CalibrationScreenView.cs`, cena `Mesa` | — |
+| `src/modes/table.js` | `Table/TableCalibrationController.cs`, `PlaneScanVisualizer.cs`, `UI/CalibrationScreenView.cs`, cena `Mesa` | — |
+| `src/table/tableVisuals.js` | `Table/TableAreaVisualizer.cs` | — |
+| `src/modes/tableCamera.js`, `src/table/cameraPose.js` | — (só na web: Mesa sem ARCore, PLANO §5.2 método 2) | — |
 | `src/modes/cards.js` | `Phase0/CardCreatureSpawner.cs`, cena `Fase0` | — |
 | `src/creatures.js` | `Phase0/CardPrefabLibrary.cs`, `CreatureSpawnFx.cs` | — |
 

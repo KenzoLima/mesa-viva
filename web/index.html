@@ -157,6 +157,7 @@
         <button id="btn-battlefield" class="plate">Ir para o campo de batalha</button>
         <p class="hint">Abre a câmera em tela cheia e reconhece suas cartas sozinho, sem cadastro.</p>
         <button id="btn-table" class="plate minor" aria-describedby="table-info" disabled>Mesa</button>
+        <button id="btn-table-cam" class="plate minor" aria-describedby="table-info" hidden>Mesa com câmera parada</button>
         <p id="table-info" class="hint">Verificando o aparelho…</p>
       </div>
       <footer class="frame-foot">
@@ -180,6 +181,9 @@
     </div>
   </div>
 
+  <!-- Modo Mesa com câmera parada (PC, iPhone, Android sem ARCore): vídeo + 3D + cantos -->
+  <div id="table-cam" class="ar-view" hidden></div>
+
   <!-- Overlay do modo Mesa (WebXR dom-overlay): status no alto, painel embaixo (no canto, deitado) -->
   <div id="xr-overlay" hidden>
     <div class="xr-top">
@@ -187,6 +191,14 @@
       <div id="xr-progress" class="xr-progress" role="progressbar" aria-label="Procurando a mesa" hidden><i></i></div>
     </div>
     <div class="xr-controls xr-panel">
+      <label id="xr-reference-row" class="xr-reference" hidden>Referência
+        <select id="xr-reference">
+          <option value="a4">Folha A4</option>
+          <option value="letter">Folha carta (EUA)</option>
+          <option value="playmat">Playmat (61 × 35 cm)</option>
+          <option value="card">Uma carta (menos preciso)</option>
+        </select>
+      </label>
       <div id="xr-adjust" class="xr-adjust" hidden>
         <div class="xr-row">
           <button id="xr-rotate" class="ghost" type="button">Girar 90°</button>
@@ -209,6 +221,7 @@
         <button id="xr-confirm" type="button" hidden>Confirmar mesa</button>
         <button id="xr-retry" type="button" hidden>Tentar de novo</button>
         <button id="xr-recalibrate" class="ghost" type="button" hidden>Recalibrar</button>
+        <button id="xr-corners" class="ghost" type="button" hidden>Refazer cantos</button>
         <button id="xr-exit" class="ghost" type="button">Sair</button>
       </div>
     </div>
