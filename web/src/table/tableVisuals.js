@@ -165,23 +165,6 @@ export function fitShadowCatcher(shadowCatcher, frame) {
   shadowCatcher.scale.set((frame.width + 0.5) / 2, 1, (frame.depth + 0.5) / 2);
 }
 
-/**
- * Invoca a criatura da carta no ponto `p` (mundo) da mesa. Retorna { side } ('near', 'far' ou 'outside')
- * e, dentro da área, { creature, choice } já posicionada no grupo da mesa.
- */
-export function summonOnTable({ frame, p, card, resolver, tableRoot }) {
-  const side = frame.sideOf(p);
-  if (side === 'outside') return { side };
-  const choice = resolver.resolve(card);
-  const creature = makeCreature(choice, { height: creatureHeight(card.power) });
-  creature.position.copy(local(frame.worldToTable(p)));
-  // Do seu lado a criatura olha para o oponente (-Z local); do lado dele, para você.
-  creature.rotation.y = side === 'near' ? Math.PI : 0;
-  creature.userData.spawn();
-  tableRoot.add(creature);
-  return { side, creature, choice };
-}
-
 /** Atualiza as criaturas e liga a sombra delas quando o modelo termina de carregar. */
 export function updateCreatures(creatures, dt) {
   for (const c of creatures) {
@@ -193,17 +176,13 @@ export function updateCreatures(creatures, dt) {
   }
 }
 
-/** Animação de opacidade da área: 'confirm' pisca e some; 'flash' aparece de relance. Retorna se acabou. */
+/** Animação de opacidade da área ao confirmar: pisca e some. Retorna se acabou. */
 export function animateAreaFade(area, fade, dt) {
   fade.t += dt;
-  if (fade.mode === 'confirm') {
-    const blink = fade.t < 0.6 ? 0.55 + 0.45 * Math.cos((fade.t * Math.PI * 2) / 0.2) : 1;
-    const out = fade.t < 0.6 ? 1 : Math.max(0, 1 - (fade.t - 0.6) / 0.6);
-    setAreaOpacity(area, blink * out);
-    return fade.t >= 1.2;
-  }
-  setAreaOpacity(area, fade.t < 0.2 ? fade.t / 0.2 : Math.max(0, 1 - (fade.t - 1) / 0.5));
-  return fade.t >= 1.5;
+  const blink = fade.t < 0.6 ? 0.55 + 0.45 * Math.cos((fade.t * Math.PI * 2) / 0.2) : 1;
+  const out = fade.t < 0.6 ? 1 : Math.max(0, 1 - (fade.t - 0.6) / 0.6);
+  setAreaOpacity(area, blink * out);
+  return fade.t >= 1.2;
 }
 
 /** Rotação Y (grupo da mesa) para a criatura olhar para onde aponta o topo da carta (yaw em graus). */
@@ -212,10 +191,16 @@ export function facingFromYaw(yawDeg) {
   return Math.atan2(Math.sin(a), -Math.cos(a));
 }
 
+const LUNGE = 0.75; // s: bote de reserva (modelo sem clipe de ataque, ou criatura sem attack())
+
+/** Para onde a criatura olha: o topo da carta; virada (atacando), para onde a carta apontava em pé. */
+const facingOf = (entry) => facingFromYaw(entry.tapped ? entry.baseYaw : entry.yaw);
+
 /**
  * Criaturas das cartas reconhecidas na mesa: aplica os eventos do TableCards (spawn, move, tap,
  * untap, remove). Cada criatura fica em pé no centro da carta, olhando para onde o topo da carta
- * aponta, e desliza suave quando a carta anda. onEvent(texto) recebe uma frase para o status.
+ * aponta, e desliza suave quando a carta anda. Carta virada para qualquer lado: a criatura se volta
+ * para o oponente e ataca (o golpe do modelo; sem ele, um bote). onEvent(texto) recebe uma frase.
  */
 export class RecognizedCreatures {
   constructor(tableRoot, resolver, onEvent = () => {}) {
@@ -232,7 +217,8 @@ export class RecognizedCreatures {
         const choice = this.resolver.resolve(entry.card);
         const creature = makeCreature(choice, { height: creatureHeight(entry.card.power) });
         creature.position.copy(local(entry.pos));
-        creature.rotation.y = facingFromYaw(entry.yaw);
+        creature.rotation.y = facingOf(entry);
+        creature.userData.height = creatureHeight(entry.card.power);
         creature.userData.target = { pos: creature.position.clone(), rot: creature.rotation.y };
         creature.userData.spawn();
         creature.userData.recognized = entry.id;
@@ -241,9 +227,14 @@ export class RecognizedCreatures {
         this.onEvent(`${name} na mesa → ${this.resolver.label(choice.modelId)}`);
       } else if (type === 'move') {
         const c = this.byId.get(entry.id);
-        if (c) c.userData.target = { pos: local(entry.pos), rot: facingFromYaw(entry.yaw) };
+        if (c) c.userData.target = { pos: local(entry.pos), rot: facingOf(entry) };
       } else if (type === 'tap') {
-        this.byId.get(entry.id)?.userData.attack?.();
+        const c = this.byId.get(entry.id);
+        if (c) {
+          c.userData.target = { pos: local(entry.pos), rot: facingOf(entry) };
+          // O golpe do modelo (creatures.js); se não houver, o bote daqui.
+          if (!c.userData.attack?.()) c.userData.lungeT = 0;
+        }
         this.onEvent(`${name} atacou`);
       } else if (type === 'remove') {
         const c = this.byId.get(entry.id);
@@ -256,16 +247,29 @@ export class RecognizedCreatures {
     }
   }
 
-  /** Movimento suave até a posição/rotação nova e animação de cada criatura. */
+  /** Movimento suave até a posição/rotação nova, bote de ataque e animação de cada criatura. */
   update(dt) {
     const k = 1 - Math.exp(-dt * 8);
     for (const c of this.byId.values()) {
       const t = c.userData.target;
+      const base = (c.userData.base ??= c.position.clone()); // posição sem o bote
       if (t) {
-        c.position.lerp(t.pos, k);
+        base.lerp(t.pos, k);
         let d = t.rot - c.rotation.y;
         d = Math.atan2(Math.sin(d), Math.cos(d));
-        c.rotation.y += d * k;
+        c.rotation.y += d * (c.userData.lungeT !== undefined ? Math.min(1, k * 3) : k);
+      }
+      c.position.copy(base);
+      if (c.userData.lungeT !== undefined) {
+        // Recua, dá o bote para a frente (para onde olha) e volta.
+        const f = Math.min(1, (c.userData.lungeT += dt) / LUNGE);
+        const z = f < 0.3 ? -0.15 * Math.sin((f / 0.3) * Math.PI / 2)
+          : f < 0.5 ? -0.15 + 0.6 * Math.sin(((f - 0.3) / 0.2) * Math.PI / 2)
+            : 0.45 * (1 - (f - 0.5) / 0.5) ** 2;
+        const h = c.userData.height ?? 0.07;
+        c.position.x += Math.sin(c.rotation.y) * z * h;
+        c.position.z += Math.cos(c.rotation.y) * z * h;
+        if (f >= 1) delete c.userData.lungeT;
       }
     }
     updateCreatures(this.byId.values(), dt);

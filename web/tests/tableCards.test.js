@@ -240,3 +240,51 @@ test('completa a carta pela borda de cima e estima pelo nome', async () => {
   const q = cardFromTitle({ x0: 100 + 23.625, y0: 200 + 31.68 - 8, x1: 260, y1: 200 + 31.68 + 8 }, 5000);
   assert.ok(near(q[0].x, 100, 1e-6) && near(q[0].y, 200, 1e-6) && near(q[2].x, 415, 1e-6) && near(q[2].y, 640, 1e-6));
 });
+
+test('giro do vigia: ataca na hora para qualquer lado; carta vista não some; carta ausente sai', () => {
+  const t = new TableCards({ lostAfter: 5 });
+  t.update([det(dragon, 0, -0.2, 0)], 0);
+  const id = [...t.entries.keys()][0];
+  assert.deepEqual(types(t.turn(id, 90, 1)), ['move:dragon', 'tap:dragon']);
+  assert.deepEqual(types(t.turn(id, 0, 2)), ['move:dragon', 'untap:dragon']);
+  assert.deepEqual(types(t.turn(id, -90, 3)), ['move:dragon', 'tap:dragon']); // para a esquerda também
+  assert.deepEqual(types(t.turn(id, -92, 3.2)), []); // zona morta
+  // O OCR lê a carta virada depois: nada de novo.
+  assert.deepEqual(types(t.update([det(dragon, 0, -0.2, -88)], 4)), []);
+  // Vista pelo vigia: o OCR não achar não a remove.
+  t.update([], 5, () => 'same');
+  t.update([], 6, () => 'turned');
+  t.seen(id, 7);
+  assert.deepEqual(types(t.update([], 20, () => 'same')), []);
+  // Ausente pelo vigia: sai passado o prazo, mesmo virada para a esquerda.
+  t.absent(id, 21);
+  assert.deepEqual(types(t.expire(24)), []);
+  assert.deepEqual(types(t.expire(26.5)), ['remove:dragon']);
+  assert.equal(t.entries.size, 0);
+  assert.deepEqual(t.turn(id, 0, 30), []);
+});
+
+test('uma carta física: leitura dentro do retângulo de outra é a mesma carta', async () => {
+  const { sameFootprint } = await import('../src/table/tableCards.js');
+  const a = { center: { x: -0.13, y: -0.087 }, yaw: 5 };
+  assert.ok(sameFootprint(a, { center: { x: -0.11, y: -0.134 }, yaw: 0 })); // a linha de tipo, 4,8 cm abaixo
+  assert.ok(!sameFootprint(a, { center: { x: -0.13 + 0.066, y: -0.087 }, yaw: 0 })); // carta ao lado, encostada
+  assert.ok(!sameFootprint(a, { center: { x: -0.13, y: -0.087 + 0.092 }, yaw: 0 })); // carta acima, encostada
+
+  // Token lido pela linha de tipo, depois o nome da carta no mesmo lugar: troca na hora.
+  const t = new TableCards();
+  const token = { oracleId: 'dragon-token', name: 'Dragon' };
+  t.update([{ card: token, anchor: 'type', center: { x: -0.11, y: -0.134 }, yaw: 0 }], 0);
+  assert.deepEqual(types(t.update([{ card: dragon, anchor: 'title', center: { x: -0.13, y: -0.087 }, yaw: 5 }], 1)), ['remove:dragon-token', 'spawn:dragon']);
+  // E a linha de tipo lida de novo depois não traz o token de volta.
+  assert.deepEqual(types(t.update([{ card: token, anchor: 'type', center: { x: -0.11, y: -0.134 }, yaw: 0 }], 2)), []);
+});
+
+test('nome mais completo no mesmo lugar troca na hora ("Dragon" → "Shivan Dragon")', () => {
+  const t = new TableCards();
+  const token = { oracleId: 'dragon-token', name: 'Dragon' };
+  t.update([{ card: token, anchor: 'title', center: { x: -0.11, y: -0.13 }, yaw: 0 }], 0);
+  assert.deepEqual(types(t.update([{ card: dragon, anchor: 'title', center: { x: -0.11, y: -0.13 }, yaw: 0 }], 1)), ['remove:dragon-token', 'spawn:dragon']);
+  // O contrário (nome mais curto depois) não troca.
+  assert.deepEqual(types(t.update([{ card: token, anchor: 'title', center: { x: -0.11, y: -0.13 }, yaw: 0 }], 2)), []);
+});

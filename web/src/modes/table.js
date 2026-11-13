@@ -13,13 +13,16 @@ import {
 } from '../table/tableFrame.js';
 import {
   GOLD, HANDLE_OFFSET, v3, frameMatrix, frameFromMatrix, makeArea, setAreaOpacity, disposeTree,
-  makeTableRig, fitShadowCatcher, summonOnTable, updateCreatures, animateAreaFade, RecognizedCreatures,
+  makeTableRig, fitShadowCatcher, animateAreaFade, RecognizedCreatures,
 } from '../table/tableVisuals.js';
+import { CardWatch } from '../table/cardWatch.js';
 import { TableCards, planScans, scanOrder, coverage } from '../table/tableCards.js';
 import { TableCardScanner } from '../table/cardScanner.js';
 import { XrCameraImage, cameraAccessAvailable, projectShot } from '../table/xrCameraImage.js';
 
 const MIN_TABLE_AREA = 0.15; // m², igual ao Unity
+const WATCH_EVERY = 0.25; // s: o vigia de giro olha as cartas 4 vezes por segundo
+const WATCH_SIDE = 640; // px: foto da câmera do vigia (pequena: só precisa ver a carta)
 const DRAG_THRESHOLD = 0.015; // abaixo disso o toque é toque, não arrasto
 
 export async function isTableModeSupported() {
@@ -165,15 +168,14 @@ const MESSAGES = {
   [State.NoTableHint]: 'Não encontrei a mesa. Acenda uma luz, use um playmat ou uma toalha com textura e evite superfícies lisas ou brilhantes.',
   [State.AwaitingCenterTap]: 'Toque no centro da mesa',
   [State.Adjusting]: 'Arraste para mover, use a alça para girar e confirme',
-  [State.Confirmed]: 'Ponha as cartas na mesa, ou toque nela para invocar a criatura escolhida',
+  [State.Confirmed]: 'Ponha as cartas na mesa: cada uma vira a criatura dela. Vire a carta para atacar',
 };
 
 /**
  * ui: { overlay, status, progress, sizeRow, size, adjust, rotate, flip, seats, confirm,
- *       retry, recalibrate, cardSelect, exit }
- * pickCard(): a carta que o próximo toque invoca.
+ *       retry, recalibrate, exit, recognizeRow, recognize, scanInfo }
  */
-export async function startTableMode({ ui, catalog, resolver, pickCard, onEnd }) {
+export async function startTableMode({ ui, catalog, resolver, onEnd }) {
   // A sessão é pedida antes de qualquer outra coisa: o navegador só aceita logo depois do toque.
   const session = await navigator.xr.requestSession('immersive-ar', {
     requiredFeatures: ['hit-test'],
@@ -245,8 +247,7 @@ export async function startTableMode({ ui, catalog, resolver, pickCard, onEnd })
   let seat = Seat.NearCamera;
   let anchor = null;
   let anchorPending = false;
-  let fade = null; // { t, mode: 'confirm' | 'flash' }
-  const creatures = [];
+  let fade = null; // { t, mode: 'confirm' }
   const hitPos = new THREE.Vector3();
   const hitMatrix = new THREE.Matrix4();
   const camPos = new THREE.Vector3();
@@ -271,7 +272,6 @@ export async function startTableMode({ ui, catalog, resolver, pickCard, onEnd })
     ui.confirm.hidden = !adjusting;
     ui.retry.hidden = state !== State.NoTableHint;
     ui.recalibrate.hidden = state !== State.Confirmed;
-    ui.cardSelect.hidden = state !== State.Confirmed;
     ui.recognizeRow.hidden = state !== State.Confirmed;
     ui.progress.hidden = !(state === State.Scanning || state === State.NoTableHint);
     for (const b of ui.seats) b.setAttribute('aria-pressed', String(b.dataset.seat === seat));
@@ -288,7 +288,8 @@ export async function startTableMode({ ui, catalog, resolver, pickCard, onEnd })
     else {
       text = MESSAGES[sm.state];
       // Sem a imagem da câmera (ou com o reconhecimento desligado), a mesa só invoca pelo toque.
-      if (sm.state === State.Confirmed && (ui.recognize.disabled || !ui.recognize.checked)) text = 'Toque na mesa para invocar a criatura escolhida';
+      if (sm.state === State.Confirmed && ui.recognize.disabled) text = 'Este celular não entrega a imagem da câmera na RA: use a Mesa com câmera parada para as cartas virarem criaturas';
+      else if (sm.state === State.Confirmed && !ui.recognize.checked) text = 'Reconhecimento das cartas pausado';
       if (sm.state === State.NoTableHint) level = 'warn';
     }
     if (ui.status.textContent !== text) ui.status.textContent = text;
@@ -365,7 +366,6 @@ export async function startTableMode({ ui, catalog, resolver, pickCard, onEnd })
     }
     anchorPending = true;
     fade = { t: 0, mode: 'confirm' };
-    for (const c of creatures) tableRoot.attach(c); // criaturas de antes voltam a seguir a mesa
     vibrate(20);
   }, { signal });
   ui.recalibrate.addEventListener('click', () => {
@@ -375,9 +375,6 @@ export async function startTableMode({ ui, catalog, resolver, pickCard, onEnd })
     anchor = null;
     anchorPending = false;
     fade = null;
-    // As criaturas ficam onde estão no mundo enquanto a mesa é refeita.
-    tableRoot.updateMatrixWorld(true);
-    for (const c of creatures) scene.attach(c);
     tableRoot.visible = false;
     frame = null;
     sm.recalibrate(scan.found);
@@ -402,9 +399,13 @@ export async function startTableMode({ ui, catalog, resolver, pickCard, onEnd })
   ui.scanInfo.textContent = camImage ? '' : 'este celular não entrega a imagem da câmera na RA: use a Mesa com câmera parada';
   ui.recognize.disabled = !camImage;
 
+  const watch = new CardWatch(cards, recognized);
+  let watchTimer = 0;
+
   function forgetCards() {
     cards.clear();
     recognized.clear();
+    watch.clear();
     if (camImage) ui.scanInfo.textContent = '';
   }
 
@@ -441,7 +442,7 @@ export async function startTableMode({ ui, catalog, resolver, pickCard, onEnd })
         }
         const job = order[jobIndex++ % order.length];
         const src = scanner.gray(shot.canvas, shot.w, shot.h);
-        if (import.meta.env?.DEV) window.__xrTableDebug = { src, job, toImage, shot, scanner, cards };
+        if (import.meta.env?.DEV) window.__xrTableDebug = { src, job, toImage, shot, scanner, cards, watch };
         const detections = await scanner.scan(src, job, toImage);
         if (ended || sm.state !== State.Confirmed || !ui.recognize.checked || shot.epoch !== epoch) continue;
         // Só conta como sumida a carta que ESTE bloco, nesta foto, teria lido.
@@ -476,7 +477,8 @@ export async function startTableMode({ ui, catalog, resolver, pickCard, onEnd })
 
   session.addEventListener('select', (e) => {
     if (drag?.moved) return; // foi arrasto, não toque
-    if (sm.state === State.Confirmed) return summon(e);
+    // As criaturas vêm das cartas reconhecidas; o toque só serve para calibrar a mesa.
+    if (sm.state === State.Confirmed) return;
 
     const touched = touchHits.get(e.inputSource);
     const onPlane = !!touched || hasHit;
@@ -494,26 +496,6 @@ export async function startTableMode({ ui, catalog, resolver, pickCard, onEnd })
       say('Toque sobre a mesa detectada (onde aparece o anel dourado)', 2.5, 'warn');
     }
   });
-
-  function summon(e) {
-    const p = touchOnTable(e.inputSource, e.frame) ?? touchHits.get(e.inputSource) ?? (hasHit ? hitPos.clone() : null);
-    if (!p || !frame.isOnTable(p, 0.05)) return;
-    const card = pickCard();
-    if (!card) {
-      say('Escolha uma carta para invocar', 2.5, 'warn');
-      return;
-    }
-    const { side, creature, choice } = summonOnTable({ frame, p, card, resolver, tableRoot });
-    if (side === 'outside') {
-      vibrate([40, 40, 40]);
-      fade = { t: 0, mode: 'flash' };
-      say('Fora da mesa: toque dentro da área', 2.5, 'warn');
-      return;
-    }
-    creatures.push(creature);
-    vibrate(15);
-    say(`${card.displayName} → ${resolver.label(choice.modelId)} (${side === 'near' ? 'seu lado' : 'lado do oponente'})`, 3);
-  }
 
   // ---------------- quadro a quadro
   const clock = new THREE.Clock();
@@ -605,7 +587,7 @@ export async function startTableMode({ ui, catalog, resolver, pickCard, onEnd })
       }
     }
 
-    // Confirmar: a área pisca e some. Toque fora: aparece de relance.
+    // Confirmar: a área pisca e some.
     if (fade && area && animateAreaFade(area, fade, dt)) fade = null;
 
     reticle.visible = hasHit && started && !lost.value && sm.state !== State.Confirmed && sm.state !== State.Adjusting;
@@ -614,14 +596,23 @@ export async function startTableMode({ ui, catalog, resolver, pickCard, onEnd })
       renderStatus();
     }
     // Rastreamento perdido: as criaturas congelam (PLANO §5.3).
-    if (!lost.value) {
-      updateCreatures(creatures, dt);
-      recognized.update(dt);
-    }
+    if (!lost.value) recognized.update(dt);
     renderer.render(scene, camera);
 
     // Imagem da câmera para o leitor de cartas (depois de desenhar: a textura vale até o fim do quadro).
     const view = xrFrame?.getViewerPose(refSpace)?.views[0];
+    // Vigia das cartas já reconhecidas (virar para atacar na hora): foto pequena, 4 vezes por segundo.
+    watchTimer += dt;
+    if (camImage && view && frame && sm.state === State.Confirmed && ui.recognize.checked && !lost.value
+      && cards.entries.size && watchTimer >= WATCH_EVERY) {
+      watchTimer = 0;
+      try {
+        const small = camImage.grab(view, WATCH_SIDE);
+        if (small) watch.tick(small.canvas, small.w, small.h, (pos) => projectShot(frame.tableToWorld(pos), small), clockTime);
+      } catch (err) {
+        console.warn('Vigia das cartas falhou neste quadro', err);
+      }
+    }
     if (shotRequest && view) {
       const resolve = shotRequest;
       shotRequest = null;

@@ -292,15 +292,6 @@ h2 small { font: 400 0.8rem system-ui, sans-serif; color: var(--muted); margin-l
 #xr-size-row { display: flex; gap: 10px; align-items: center; font-size: 0.9rem; }
 #xr-size-row[hidden] { display: none; }
 #xr-size { flex: 1; accent-color: var(--gold); min-height: 32px; }
-.xr-card { display: grid; gap: 6px; }
-.xr-card input, .xr-card select {
-  font: inherit;
-  padding: 10px;
-  border-radius: 10px;
-  background: var(--panel);
-  color: var(--text);
-  border: 1px solid var(--line);
-}
 #xr-overlay button:focus-visible, #xr-overlay input:focus-visible, #xr-overlay select:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
