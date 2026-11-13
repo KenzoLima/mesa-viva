@@ -1,0 +1,38 @@
+[
+  {
+    "name": "BST_bone",
+    "metallic": 0.0,
+    "roughness": 0.55,
+    "emissive": null,
+    "doubleSided": false,
+    "baseColor": "COLOR_0 (cor por vértice, linear)"
+  },
+  {
+    "name": "BST_glow_amber",
+    "metallic": 0.0,
+    "roughness": 1.0,
+    "emissive": [
+      1.0,
+      0.55,
+      0.08
+    ],
+    "doubleSided": true,
+    "baseColor": "COLOR_0 (cor por vértice, linear)"
+  },
+  {
+    "name": "BST_membrane",
+    "metallic": 0.0,
+    "roughness": 0.7,
+    "emissive": null,
+    "doubleSided": true,
+    "baseColor": "COLOR_0 (cor por vértice, linear)"
+  },
+  {
+    "name": "BST_scales",
+    "metallic": 0.0,
+    "roughness": 0.6,
+    "emissive": null,
+    "doubleSided": false,
+    "baseColor": "COLOR_0 (cor por vértice, linear)"
+  }
+]

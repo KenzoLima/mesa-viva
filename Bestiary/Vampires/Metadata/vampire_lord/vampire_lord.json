@@ -1,0 +1,167 @@
+{
+  "id": "vampire_lord",
+  "name": "Lorde Vampiro",
+  "tribe": "Vampires",
+  "description": "Senhor de um castelo em ruínas: pele pálida, olhos vermelhos acesos, gibão negro com jabô cor de sangue, gola alta, capa longa forrada de carmesim com barra recortada, garras e uma rapieira ornamentada.",
+  "size_category": "humanoide",
+  "height_m": 1.96,
+  "bounds_m": {
+    "width_x": 1.04,
+    "height_y": 1.95,
+    "length_z": 1.42
+  },
+  "triangles": 1314,
+  "triangle_budget": [
+    1500,
+    4000
+  ],
+  "within_budget": false,
+  "materials": [
+    "BST_bone",
+    "BST_cloth",
+    "BST_glow_red",
+    "BST_gold",
+    "BST_leather",
+    "BST_matte",
+    "BST_metal",
+    "BST_metal_dark",
+    "BST_skin"
+  ],
+  "bones": 23,
+  "bone_names": [
+    "root",
+    "hips",
+    "spine",
+    "chest",
+    "neck",
+    "head",
+    "upper_arm.L",
+    "forearm.L",
+    "hand.L",
+    "weapon.L",
+    "upper_arm.R",
+    "forearm.R",
+    "hand.R",
+    "weapon.R",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R",
+    "cape_01",
+    "cape_02",
+    "cape_03"
+  ],
+  "animations": [
+    {
+      "name": "Idle",
+      "duration": 2.4,
+      "loop": true,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Walk",
+      "duration": 1.25,
+      "loop": true,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Run",
+      "duration": 0.62,
+      "loop": true,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Attack",
+      "duration": 0.8,
+      "loop": false,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Hit",
+      "duration": 0.5,
+      "loop": false,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Death",
+      "duration": 1.7,
+      "loop": false,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Glide",
+      "duration": 2.0,
+      "loop": true,
+      "fps": 24,
+      "root_motion": false
+    }
+  ],
+  "variants": [
+    "vampire_noble (sem ombreiras, sem arma)",
+    "vampire_warrior (espada reta + peitoral)",
+    "vampire_hunter (capa curta, besta)",
+    "vampire_aristocrat (silhueta feminina, vestido no lugar das abas)"
+  ],
+  "sockets": [
+    "weapon.R",
+    "weapon.L"
+  ],
+  "files": {
+    "model": "Models/vampire_lord/vampire_lord.glb",
+    "lods": [
+      {
+        "lod": 0,
+        "file": "Models/vampire_lord/vampire_lord.glb",
+        "triangles": 1314,
+        "bytes": 275164
+      },
+      {
+        "lod": 1,
+        "file": "Models/vampire_lord/vampire_lord_LOD1.glb",
+        "triangles": 1076,
+        "bytes": 247076
+      },
+      {
+        "lod": 2,
+        "file": "Models/vampire_lord/vampire_lord_LOD2.glb",
+        "triangles": 794,
+        "bytes": 206296
+      }
+    ],
+    "blend": null,
+    "palette": "Textures/vampire_lord/vampire_lord_palette.png",
+    "materials": "Materials/vampire_lord/vampire_lord_materials.json",
+    "animations": "Animations/vampire_lord/vampire_lord_animations.json",
+    "renders": [
+      "Renders/vampire_lord/vampire_lord_sheet.png",
+      "Renders/vampire_lord/vampire_lord_animations.png",
+      "Renders/vampire_lord/vampire_lord_front.png",
+      "Renders/vampire_lord/vampire_lord_side.png",
+      "Renders/vampire_lord/vampire_lord_back.png",
+      "Renders/vampire_lord/vampire_lord_threequarter.png",
+      "Renders/vampire_lord/vampire_lord_wireframe.png",
+      "Renders/vampire_lord/vampire_lord_materials.png",
+      "Renders/vampire_lord/vampire_lord_scale.png"
+    ]
+  },
+  "export": {
+    "format": "GLB (glTF 2.0)",
+    "units": "meters",
+    "up_axis": "+Y",
+    "forward_axis": "+Z",
+    "shading": "flat (normais por face)",
+    "color": "COLOR_0 por vértice, sem texturas",
+    "skinning": "JOINTS_0/WEIGHTS_0, até 2 influências",
+    "generator": "tools/bestiary/build.py",
+    "verified": "estrutura relida do disco por verify_glb()",
+    "notes": "Animações sem root motion. Extra: Glide (deslocamento elegante, flutuando). Transformação (morcego/névoa) exige malha alternativa e ficou fora do protótipo."
+  }
+}

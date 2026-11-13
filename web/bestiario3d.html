@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bestiário 3D — Mesa Viva</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0b0e; color: #e2cd96; font: 14px/1.4 system-ui, sans-serif; overflow: hidden; }
+  canvas { display: block; }
+  #ui { position: fixed; left: 12px; top: 12px; right: 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  button { background: #1a1a20; color: #e2cd96; border: 1px solid #3a3528; border-radius: 6px; padding: 6px 10px; cursor: pointer; font: inherit; }
+  button.on { background: #e2cd96; color: #14120c; }
+  #info { position: fixed; left: 12px; bottom: 12px; color: #9a9aa6; }
+  .sep { width: 12px; }
+</style>
+</head>
+<body>
+<div id="ui"></div>
+<div id="info"></div>
+<script type="module">
+// Visualizador de desenvolvimento: carrega public/models/bestiary/<id>.glb (gerados por tools/bestiary/build.py).
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const IDS = ['dragon_red', 'elf_warrior', 'goblin_warrior', 'vampire_lord'];
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.7;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0d0d11);
+scene.fog = new THREE.Fog(0x0d0d11, 30, 90);
+const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+scene.add(new THREE.HemisphereLight(0x9fb0d0, 0x2a2420, 1.7));
+const key = new THREE.DirectionalLight(0xffe8c8, 2.6);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.bias = -0.0004;
+key.shadow.normalBias = 0.03;
+scene.add(key, key.target);
+const rim = new THREE.DirectionalLight(0x5f8fd0, 1.2);
+rim.position.set(-4, 5, -8);
+scene.add(rim);
+const ground = new THREE.Mesh(new THREE.CircleGeometry(60, 48), new THREE.MeshStandardMaterial({ color: 0x17171c, roughness: 1 }));
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+const ui = document.getElementById('ui');
+const info = document.getElementById('info');
+let current = null, mixer = null, clips = [], wire = false;
+window.__bestiary = { loaded: null, error: null };
+
+function button(label, fn, group) {
+  const b = document.createElement('button');
+  b.textContent = label;
+  b.dataset.group = group;
+  b.onclick = () => { ui.querySelectorAll(`[data-group="${group}"]`).forEach((x) => x.classList.remove('on')); b.classList.add('on'); fn(); };
+  ui.appendChild(b);
+  return b;
+}
+
+function play(name) {
+  mixer.stopAllAction();
+  const clip = clips.find((c) => c.name === name);
+  const act = mixer.clipAction(clip);
+  const once = /attack|hit|death|dodge|land/i.test(name);
+  act.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat);
+  act.clampWhenFinished = true;
+  act.reset().play();
+  window.__bestiary.clip = name;
+}
+
+async function load(id) {
+  const gltf = await new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/bestiary/${id}.glb`);
+  if (current) scene.remove(current);
+  current = gltf.scene;
+  let tris = 0;
+  current.traverse((o) => {
+    if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; tris += o.geometry.index.count / 3;
+      (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { m.wireframe = wire; }); }
+  });
+  scene.add(current);
+  const box = new THREE.Box3();
+  current.traverse((o) => { if (o.isMesh) { o.geometry.computeBoundingBox(); box.union(o.geometry.boundingBox); } });
+  const size = box.getSize(new THREE.Vector3());
+  const r = Math.max(size.x, size.y, size.z);
+  controls.target.set(0, size.y * 0.48, 0);
+  camera.position.set(r * 0.85, size.y * 0.75, r * 1.45);
+  key.position.set(-r * 0.25, r * 1.5, r * 1.4);
+  key.target.position.set(0, size.y / 2, 0);
+  Object.assign(key.shadow.camera, { left: -r, right: r, top: r, bottom: -r, near: 0.1, far: r * 6 });
+  key.shadow.camera.updateProjectionMatrix();
+  mixer = new THREE.AnimationMixer(current);
+  clips = gltf.animations;
+  ui.querySelectorAll('[data-group="anim"]').forEach((x) => x.remove());
+  clips.forEach((c, i) => { const b = button(c.name, () => play(c.name), 'anim'); if (i === 0) b.classList.add('on'); });
+  play(clips[0].name);
+  info.textContent = `${id} · ${tris} triângulos · ${size.y.toFixed(2)} m de altura · ${clips.length} animações · arraste para girar`;
+  window.__bestiary.loaded = { id, tris, height: +size.y.toFixed(2), clips: clips.map((c) => c.name) };
+}
+
+IDS.forEach((id, i) => { const b = button(id, () => load(id).catch((e) => { window.__bestiary.error = String(e); }), 'creature'); if (i === 0) b.classList.add('on'); });
+const w = document.createElement('button');
+w.textContent = 'wireframe';
+w.onclick = () => { wire = !wire; w.classList.toggle('on', wire); current?.traverse((o) => { if (o.isMesh) o.material.wireframe = wire; }); };
+ui.appendChild(w);
+ui.appendChild(Object.assign(document.createElement('span'), { className: 'sep' }));
+
+function resize() {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+resize();
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => { mixer?.update(clock.getDelta()); controls.update(); renderer.render(scene, camera); });
+const first = new URLSearchParams(location.search).get('id') ?? IDS[0];
+ui.querySelectorAll('[data-group="creature"]').forEach((b) => b.classList.toggle('on', b.textContent === first));
+load(first).catch((e) => { window.__bestiary.error = String(e); info.textContent = 'Erro: ' + e; });
+</script>
+</body>
+</html>

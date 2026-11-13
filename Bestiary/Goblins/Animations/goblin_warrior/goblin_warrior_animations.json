@@ -1,0 +1,54 @@
+{
+  "embedded_in": "Models/goblin_warrior/goblin_warrior.glb",
+  "clips": [
+    {
+      "name": "Idle",
+      "duration": 2.4,
+      "loop": true,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Walk",
+      "duration": 0.7,
+      "loop": true,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Run",
+      "duration": 0.44,
+      "loop": true,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Attack",
+      "duration": 0.55,
+      "loop": false,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Hit",
+      "duration": 0.5,
+      "loop": false,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Death",
+      "duration": 1.7,
+      "loop": false,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Dodge",
+      "duration": 0.6,
+      "loop": false,
+      "fps": 24,
+      "root_motion": false
+    }
+  ]
+}

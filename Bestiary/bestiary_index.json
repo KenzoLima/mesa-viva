@@ -1,0 +1,38 @@
+[
+  {
+    "id": "dragon_red",
+    "name": "Dragão Vermelho",
+    "tribe": "Dragons",
+    "size_category": "grande",
+    "height_m": 4.79,
+    "triangles": 1759,
+    "metadata": "Dragons/Metadata/dragon_red/dragon_red.json"
+  },
+  {
+    "id": "elf_warrior",
+    "name": "Elfo Guerreiro",
+    "tribe": "Elves",
+    "size_category": "humanoide",
+    "height_m": 2.0,
+    "triangles": 1352,
+    "metadata": "Elves/Metadata/elf_warrior/elf_warrior.json"
+  },
+  {
+    "id": "goblin_warrior",
+    "name": "Goblin Guerreiro",
+    "tribe": "Goblins",
+    "size_category": "pequena",
+    "height_m": 1.17,
+    "triangles": 981,
+    "metadata": "Goblins/Metadata/goblin_warrior/goblin_warrior.json"
+  },
+  {
+    "id": "vampire_lord",
+    "name": "Lorde Vampiro",
+    "tribe": "Vampires",
+    "size_category": "humanoide",
+    "height_m": 1.96,
+    "triangles": 1314,
+    "metadata": "Vampires/Metadata/vampire_lord/vampire_lord.json"
+  }
+]

@@ -1,0 +1,54 @@
+{
+  "embedded_in": "Models/vampire_lord/vampire_lord.glb",
+  "clips": [
+    {
+      "name": "Idle",
+      "duration": 2.4,
+      "loop": true,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Walk",
+      "duration": 1.25,
+      "loop": true,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Run",
+      "duration": 0.62,
+      "loop": true,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Attack",
+      "duration": 0.8,
+      "loop": false,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Hit",
+      "duration": 0.5,
+      "loop": false,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Death",
+      "duration": 1.7,
+      "loop": false,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Glide",
+      "duration": 2.0,
+      "loop": true,
+      "fps": 24,
+      "root_motion": false
+    }
+  ]
+}

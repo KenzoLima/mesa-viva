@@ -1,0 +1,160 @@
+{
+  "id": "elf_warrior",
+  "name": "Elfo Guerreiro",
+  "tribe": "Elves",
+  "description": "Sentinela de uma floresta amaldiçoada: armadura de escamas-folha verde-musgo com bronze envelhecido, elmo de crista, meia-capa, lâmina em folha e escudo em folha. Olhos verdes espectrais.",
+  "size_category": "humanoide",
+  "height_m": 2.0,
+  "bounds_m": {
+    "width_x": 0.72,
+    "height_y": 1.99,
+    "length_z": 1.19
+  },
+  "triangles": 1352,
+  "triangle_budget": [
+    1500,
+    4000
+  ],
+  "within_budget": false,
+  "materials": [
+    "BST_cloth",
+    "BST_glow_green",
+    "BST_gold",
+    "BST_leather",
+    "BST_matte",
+    "BST_membrane",
+    "BST_metal",
+    "BST_metal_dark",
+    "BST_skin"
+  ],
+  "bones": 23,
+  "bone_names": [
+    "root",
+    "hips",
+    "spine",
+    "chest",
+    "neck",
+    "head",
+    "upper_arm.L",
+    "forearm.L",
+    "hand.L",
+    "weapon.L",
+    "upper_arm.R",
+    "forearm.R",
+    "hand.R",
+    "weapon.R",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R",
+    "cape_01",
+    "cape_02",
+    "cape_03"
+  ],
+  "animations": [
+    {
+      "name": "Idle",
+      "duration": 2.4,
+      "loop": true,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Walk",
+      "duration": 1.0,
+      "loop": true,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Run",
+      "duration": 0.58,
+      "loop": true,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Attack",
+      "duration": 0.9,
+      "loop": false,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Hit",
+      "duration": 0.5,
+      "loop": false,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Death",
+      "duration": 1.7,
+      "loop": false,
+      "fps": 24,
+      "root_motion": false
+    }
+  ],
+  "variants": [
+    "elf_archer (arco + aljava, sem escudo)",
+    "elf_mage (cajado, capuz no lugar do elmo)",
+    "elf_forest (paleta marrom/verde clara, sem ombreiras)",
+    "elf_dark (paleta roxo sombrio/preto, olhos vermelhos)"
+  ],
+  "sockets": [
+    "weapon.R",
+    "weapon.L"
+  ],
+  "files": {
+    "model": "Models/elf_warrior/elf_warrior.glb",
+    "lods": [
+      {
+        "lod": 0,
+        "file": "Models/elf_warrior/elf_warrior.glb",
+        "triangles": 1352,
+        "bytes": 268444
+      },
+      {
+        "lod": 1,
+        "file": "Models/elf_warrior/elf_warrior_LOD1.glb",
+        "triangles": 1111,
+        "bytes": 238028
+      },
+      {
+        "lod": 2,
+        "file": "Models/elf_warrior/elf_warrior_LOD2.glb",
+        "triangles": 803,
+        "bytes": 194264
+      }
+    ],
+    "blend": null,
+    "palette": "Textures/elf_warrior/elf_warrior_palette.png",
+    "materials": "Materials/elf_warrior/elf_warrior_materials.json",
+    "animations": "Animations/elf_warrior/elf_warrior_animations.json",
+    "renders": [
+      "Renders/elf_warrior/elf_warrior_sheet.png",
+      "Renders/elf_warrior/elf_warrior_animations.png",
+      "Renders/elf_warrior/elf_warrior_front.png",
+      "Renders/elf_warrior/elf_warrior_side.png",
+      "Renders/elf_warrior/elf_warrior_back.png",
+      "Renders/elf_warrior/elf_warrior_threequarter.png",
+      "Renders/elf_warrior/elf_warrior_wireframe.png",
+      "Renders/elf_warrior/elf_warrior_materials.png",
+      "Renders/elf_warrior/elf_warrior_scale.png"
+    ]
+  },
+  "export": {
+    "format": "GLB (glTF 2.0)",
+    "units": "meters",
+    "up_axis": "+Y",
+    "forward_axis": "+Z",
+    "shading": "flat (normais por face)",
+    "color": "COLOR_0 por vértice, sem texturas",
+    "skinning": "JOINTS_0/WEIGHTS_0, até 2 influências",
+    "generator": "tools/bestiary/build.py",
+    "verified": "estrutura relida do disco por verify_glb()",
+    "notes": "Animações sem root motion."
+  }
+}

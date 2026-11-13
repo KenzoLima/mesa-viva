@@ -1,0 +1,68 @@
+{
+  "embedded_in": "Models/dragon_red/dragon_red.glb",
+  "clips": [
+    {
+      "name": "Idle",
+      "duration": 4.0,
+      "loop": true,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Walk",
+      "duration": 1.8,
+      "loop": true,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Run",
+      "duration": 0.9,
+      "loop": true,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Attack_Bite",
+      "duration": 1.1,
+      "loop": false,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Attack_Fire",
+      "duration": 2.4,
+      "loop": false,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Hit",
+      "duration": 0.6,
+      "loop": false,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Death",
+      "duration": 2.6,
+      "loop": false,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Fly",
+      "duration": 1.3,
+      "loop": true,
+      "fps": 24,
+      "root_motion": false
+    },
+    {
+      "name": "Land",
+      "duration": 2.0,
+      "loop": false,
+      "fps": 24,
+      "root_motion": false
+    }
+  ]
+}
