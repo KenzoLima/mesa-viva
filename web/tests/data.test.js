@@ -29,10 +29,16 @@ test('catálogo acha por nome, face e português', () => {
 });
 
 for (const [name, model, reason] of [
-  ['Llanowar Elves', 'bestiary/elf_warrior', 'subtipo Elf'],
+  ['Llanowar Elves', 'bestiary/elf_druid', 'subtipo Elf Druid'],
   ['Goblin Guide', 'bestiary/goblin_warrior', 'subtipo Goblin'],
-  ['Delver of Secrets', 'bestiary/human_soldier', 'subtipo Human'],
+  ['Delver of Secrets', 'bestiary/human_wizard', 'subtipo Human Wizard'],
   ['White Knight', 'bestiary/human_knight', 'subtipo Human Knight'],
+  ['Academy Elite', 'bestiary/human_wizard', 'subtipo Human Wizard'],
+  ['Abbey Matron', 'bestiary/human_cleric', 'subtipo Human Cleric'],
+  ['Agent of Horizons', 'bestiary/human_rogue', 'subtipo Human Rogue'],
+  ['Balduvian Barbarians', 'bestiary/human_barbarian', 'subtipo Human Barbarian'],
+  ['Battle-Rattle Shaman', 'bestiary/goblin_shaman', 'subtipo Goblin Shaman'],
+  ['Arbor Elf', 'bestiary/elf_druid', 'subtipo Elf Druid'],
   ['Jötun Grunt', 'giant', 'subtipo Giant'],
   ['Grizzly Bears', 'beast', 'família beast (Bear)'],
   ['Progenitus', 'lizard', 'família reptile (Hydra)'],
