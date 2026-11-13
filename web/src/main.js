@@ -1,10 +1,21 @@
 import { CardCatalog } from './data/catalog.js';
 import { ModelResolver } from './data/modelResolver.js';
 import { isTableModeSupported } from './modes/table.js';
-import { loadTargets } from './modes/targets.js';
 
 const $ = (id) => document.getElementById(id);
 const BASE = import.meta.env.BASE_URL;
+
+// ---------- Navegação entre as telas do menu (antes do catálogo, para já responder ao toque) ----------
+function showScreen(name) {
+  for (const s of document.querySelectorAll('#menu [data-screen]')) s.hidden = s.dataset.screen !== name;
+  for (const b of document.querySelectorAll('#menu .tabs [data-go]')) {
+    if (b.dataset.go === name) b.setAttribute('aria-current', 'page');
+    else b.removeAttribute('aria-current');
+  }
+}
+for (const b of document.querySelectorAll('#menu [data-go]')) {
+  b.addEventListener('click', () => showScreen(b.dataset.go));
+}
 
 // Escolhas do usuário (carta -> modelo), como o AppSettings do Unity. Fica só neste aparelho.
 function loadOverrides() {
@@ -37,38 +48,34 @@ renderResults(['Shivan Dragon', 'Llanowar Elves', 'Serra Angel', 'Lightning Bolt
   .map((n) => catalog.lookup(n)[0]).filter(Boolean));
 $('catalog-count').textContent = `${catalog.size.toLocaleString('pt-BR')} cartas no catálogo`;
 
-// ---------- Modo Cartas (MindAR, todos os aparelhos) ----------
-const targets = await loadTargets(BASE);
-if (targets) {
-  $('btn-cards').disabled = false;
-  $('cards-info').textContent = `Reconhece ${targets.length} carta(s). iPhone e Android.`;
-} else {
-  $('cards-info').innerHTML = 'Sem alvos ainda. Gere em <a href="compilar.html">compilar.html</a>.';
-  $('btn-cards').disabled = false;
-  $('btn-cards').classList.add('needs-setup');
+// ---------- Campo de batalha (câmera em tela cheia, reconhece qualquer carta) ----------
+let leaveBattlefield = null;
+function closeBattlefield() {
+  leaveBattlefield?.();
+  leaveBattlefield = null;
+  if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  $('battlefield').hidden = true;
+  $('menu').hidden = false;
 }
+$('bf-exit').addEventListener('click', closeBattlefield);
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement && leaveBattlefield) closeBattlefield();
+});
 
-$('btn-cards').addEventListener('click', async () => {
-  if (!targets) {
-    location.href = `${BASE}compilar.html`;
-    return;
-  }
-  const { startCardsMode } = await import('./modes/cards.js');
+$('btn-battlefield').addEventListener('click', async () => {
+  const view = $('battlefield');
+  view.hidden = false;
   $('menu').hidden = true;
-  $('cards-view').hidden = false;
+  // Tela cheia precisa ser pedida já no toque. No iPhone (sem a API) a tela já ocupa tudo pelo CSS.
+  view.requestFullscreen?.({ navigationUI: 'hide' }).catch(() => {});
+  screen.orientation?.lock?.('landscape').catch(() => {});
+  const status = (t) => { $('bf-status').textContent = t; };
   try {
-    const stop = await startCardsMode($('cards-container'), {
-      targets, catalog, resolver, onStatus: (t) => { $('cards-status').textContent = t; },
-    });
-    $('cards-exit').onclick = () => {
-      stop();
-      $('cards-view').hidden = true;
-      $('menu').hidden = false;
-    };
+    const { startBattlefield } = await import('./modes/battlefield.js');
+    leaveBattlefield = await startBattlefield(view, { catalog, resolver, onStatus: status });
   } catch (err) {
     console.error(err);
-    $('cards-status').textContent = `Não consegui abrir a câmera: ${err.message ?? err}`;
-    $('cards-exit').onclick = () => location.reload();
+    status(`Não consegui abrir a câmera: ${err.message ?? err}`);
   }
 });
 
@@ -77,7 +84,7 @@ if (await isTableModeSupported()) {
   $('btn-table').disabled = false;
   $('table-info').textContent = 'Detecta a mesa e invoca criaturas onde você tocar.';
 } else {
-  $('table-info').textContent = 'Precisa do Chrome no Android com ARCore. No iPhone, use o modo Cartas.';
+  $('table-info').textContent = 'Precisa do Chrome no Android com ARCore. No iPhone, use o campo de batalha.';
 }
 
 // Com o catálogo inteiro (~30 mil cartas) não dá para listar tudo: busca e mostra as melhores.

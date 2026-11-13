@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "mind-ar": "1.2.5",
+    "tesseract.js": "^5.1.1",
     "three": "0.160.0"
   },
   "devDependencies": {
