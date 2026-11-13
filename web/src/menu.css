@@ -1,0 +1,347 @@
+/* ==========================================================================
+   Menu (Início, Biblioteca, Batalha): frame tradicional em ouro envelhecido.
+   Tudo aqui fica dentro de #menu; as telas de câmera não usam estas regras.
+   A luz vem do canto superior esquerdo: o que é saliente clareia em cima e à
+   esquerda e projeta sombra para baixo e para a direita; o que é rebaixado
+   recebe a sombra da borda em cima e à esquerda.
+   ========================================================================== */
+#menu {
+  --ink: #2a1d0c;
+  --ink-soft: #5b4526;
+  --parch-hi: #eee0b9;
+  --parch: #dfcd9d;
+  --parch-lo: #c2aa74;
+  --metal-hi: #c9ad6e;
+  --metal: #9a7a3e;
+  --edge-light: rgba(255, 236, 186, 0.5);
+  --edge-dark: rgba(24, 15, 5, 0.62);
+  --serif: "Palatino Linotype", Palatino, "Book Antiqua", "URW Palladio L", Georgia, serif;
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='.55'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --scratch: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320'%3E%3Cfilter id='s'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.011 .62' numOctaves='2' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='.4'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23s)'/%3E%3C/svg%3E");
+
+  height: 100dvh;
+  min-height: 600px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: max(14px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+  font-family: var(--serif);
+  color: var(--ink);
+  /* Mesa escura, com a luz do estúdio caindo do alto à esquerda */
+  background:
+    var(--grain),
+    radial-gradient(130% 90% at 8% 0%, #4a3a2c 0%, #2a2019 45%, #15100d 100%);
+  background-blend-mode: soft-light, normal;
+}
+
+/* ---------- Moldura externa ---------- */
+#menu .card-frame {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 690px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 13px 13px 9px;
+  border-radius: 15px;
+  background:
+    var(--grain),
+    var(--scratch),
+    /* realce difuso da luz principal */
+    radial-gradient(95% 60% at 4% 0%, rgba(255, 232, 170, 0.42), transparent 62%),
+    /* manchas de oxidação, longe da luz */
+    radial-gradient(42% 26% at 92% 78%, rgba(58, 72, 48, 0.3), transparent 72%),
+    radial-gradient(30% 18% at 12% 96%, rgba(70, 44, 26, 0.34), transparent 75%),
+    linear-gradient(140deg, #b89a5c 0%, #98793e 28%, #7c5f2e 58%, #523c1b 100%);
+  background-blend-mode: overlay, soft-light, normal, normal, normal, normal;
+  box-shadow:
+    inset 1.5px 1.5px 0 var(--edge-light),
+    inset -2px -2px 0 var(--edge-dark),
+    inset 0 0 0 4px rgba(60, 42, 16, 0.22),
+    1px 2px 3px rgba(0, 0, 0, 0.55),
+    9px 16px 30px rgba(0, 0, 0, 0.5);
+}
+/* Rebites nos quatro cantos */
+#menu .card-frame::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  pointer-events: none;
+  --rivet: radial-gradient(circle at 36% 32%, #e0c88e 0 14%, #94743a 38%, #3f2e14 70%, transparent 73%);
+  background-image: var(--rivet), var(--rivet), var(--rivet), var(--rivet);
+  background-position: 0 0, 100% 0, 0 100%, 100% 100%;
+  background-size: 7px 7px;
+  background-repeat: no-repeat;
+}
+
+/* ---------- Placas salientes: nome, tipo, F/R, botões ---------- */
+#menu .frame-title,
+#menu .frame-type,
+#menu .frame-pt,
+#menu .plate {
+  background:
+    var(--grain),
+    var(--scratch),
+    linear-gradient(150deg, var(--metal-hi) 0%, #b3955a 22%, var(--metal) 60%, #7b5e2f 100%);
+  background-blend-mode: overlay, soft-light, normal;
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 240, 200, 0.58),
+    inset -1px -1px 0 rgba(30, 19, 6, 0.55),
+    1px 2px 2px rgba(18, 11, 3, 0.55),
+    3px 5px 7px rgba(18, 11, 3, 0.3);
+  color: var(--ink);
+  /* texto gravado: a borda inferior do sulco pega a luz */
+  text-shadow: 0 1px 0 rgba(255, 236, 190, 0.38);
+}
+
+#menu .frame-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 40px;
+  padding: 5px 9px 5px 12px;
+  border-radius: 9px 9px 5px 5px;
+}
+#menu .frame-title h1,
+#menu .frame-title h2 {
+  margin: 0;
+  font: 700 1.3rem/1.15 var(--serif);
+  letter-spacing: 0.015em;
+  color: var(--ink);
+}
+
+/* Custo de mana: gotas de esmalte fosco */
+#menu .mana { display: flex; gap: 4px; flex: none; }
+#menu .pip {
+  --c: #b9b3a6;
+  width: 23px;
+  height: 23px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font: 700 0.86rem/1 var(--serif);
+  font-style: normal;
+  color: #20170b;
+  text-shadow: none;
+  background:
+    radial-gradient(circle at 33% 28%, rgba(255, 255, 255, 0.5) 0 9%, transparent 34%),
+    radial-gradient(circle at 60% 68%, rgba(0, 0, 0, 0.3), transparent 62%),
+    var(--c);
+  box-shadow: inset 0 0 0 1px rgba(30, 20, 8, 0.45), 1px 2px 2px rgba(18, 11, 3, 0.55);
+}
+#menu .pip.w { --c: #d9cfb0; }
+#menu .pip.u { --c: #6f8fa3; }
+#menu .pip.b { --c: #6a6069; }
+#menu .pip.r { --c: #a8553c; }
+#menu .pip.g { --c: #6c8757; }
+
+/* ---------- Janela da ilustração (rebaixada) ---------- */
+#menu .frame-art {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 120px;
+  margin: 0 5px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: #2b2530;
+  /* chanfro do rasgo na moldura: escuro em cima/esquerda, claro embaixo/direita */
+  box-shadow:
+    -1px -1px 0 1px rgba(28, 18, 6, 0.6),
+    1px 1px 0 1px rgba(255, 232, 178, 0.36),
+    0 0 0 3px rgba(96, 72, 32, 0.55);
+}
+#menu .frame-art svg { display: block; width: 100%; height: 100%; }
+/* sombra da borda sobre a pintura + grão de tinta */
+#menu .frame-art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--grain);
+  mix-blend-mode: soft-light;
+  box-shadow:
+    inset 4px 5px 8px rgba(10, 6, 2, 0.6),
+    inset -1px -1px 3px rgba(10, 6, 2, 0.22);
+}
+#menu .frame-art.strip { flex: 0 0 19%; min-height: 84px; }
+
+/* ---------- Barra de tipo ---------- */
+#menu .frame-type {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 31px;
+  padding: 4px 10px 4px 12px;
+  border-radius: 5px;
+  font: 600 0.9rem/1.2 var(--serif);
+}
+#menu .frame-type small { font: 400 0.8rem var(--serif); color: #3d2c12; }
+#menu .set-mark {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-right: 3px;
+  transform: rotate(45deg);
+  background: linear-gradient(135deg, #5a4320, #241808);
+  box-shadow: inset 1px 1px 1px rgba(0, 0, 0, 0.5), 1px 1px 0 rgba(255, 236, 190, 0.4);
+}
+
+/* ---------- Caixa de texto em pergaminho (rebaixada) ---------- */
+#menu .frame-text {
+  position: relative;
+  margin: 0 5px;
+  padding: 13px 14px 16px;
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font: 400 0.98rem/1.42 var(--serif);
+  color: var(--ink);
+  background:
+    var(--grain),
+    radial-gradient(60% 34% at 88% 92%, rgba(120, 88, 40, 0.2), transparent 75%),
+    radial-gradient(120% 110% at 0% 0%, var(--parch-hi) 0%, var(--parch) 55%, var(--parch-lo) 100%);
+  background-blend-mode: multiply, normal, normal;
+  box-shadow:
+    inset 4px 5px 8px rgba(52, 34, 10, 0.5),
+    inset -1px -1px 2px rgba(52, 34, 10, 0.2),
+    -1px -1px 0 1px rgba(28, 18, 6, 0.6),
+    1px 1px 0 1px rgba(255, 232, 178, 0.36),
+    0 0 0 3px rgba(96, 72, 32, 0.55);
+}
+#menu .frame-text.fill { flex: 1 1 0; min-height: 0; }
+#menu .frame-text p { margin: 0; }
+#menu .frame-text .hint { font-size: 0.86rem; line-height: 1.35; color: var(--ink-soft); margin-top: -4px; }
+#menu .flavor {
+  margin-top: 2px;
+  padding-top: 10px;
+  font-style: italic;
+  color: #4a381c;
+  border-top: 1px solid rgba(70, 48, 16, 0.32);
+  box-shadow: inset 0 1px 0 rgba(255, 244, 210, 0.45);
+}
+
+/* ---------- Botões: placas de bronze sobre o pergaminho ---------- */
+#menu .plate {
+  display: block;
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 6px;
+  font: 700 1.04rem/1.2 var(--serif);
+  letter-spacing: 0.02em;
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 90ms ease-out, box-shadow 90ms ease-out;
+}
+#menu .plate.minor { font-weight: 600; font-size: 0.98rem; min-height: 42px; }
+#menu .plate:not(:disabled):active,
+#menu .tabs .plate[aria-current="page"] {
+  /* pressionada: afunda e passa a receber sombra em vez de projetar */
+  transform: translate(1px, 2px);
+  box-shadow:
+    inset 2px 3px 5px rgba(22, 13, 3, 0.6),
+    inset -1px -1px 0 rgba(255, 236, 190, 0.3);
+}
+#menu .plate:focus-visible,
+#menu input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+#menu .tabs .plate:focus-visible { outline-color: #e6d3a3; }
+#menu .plate:disabled {
+  cursor: default;
+  opacity: 1;
+  color: rgba(42, 29, 12, 0.5);
+  text-shadow: none;
+  background: var(--grain), linear-gradient(150deg, #a39675 0%, #857754 100%);
+  background-blend-mode: overlay, normal;
+  box-shadow: inset 1px 1px 0 rgba(255, 240, 200, 0.25), inset -1px -1px 0 rgba(30, 19, 6, 0.35);
+}
+
+/* ---------- Rodapé da carta: crédito e F/R ---------- */
+#menu .frame-foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 4px 0 6px;
+  min-height: 30px;
+}
+#menu .frame-foot small {
+  font: 400 0.64rem/1.3 var(--serif);
+  color: #ecdcb2;
+  text-shadow: 0 1px 1px rgba(20, 12, 3, 0.7);
+  padding-bottom: 2px;
+}
+#menu .frame-pt {
+  position: relative;
+  flex: none;
+  margin-top: -15px;
+  min-width: 60px;
+  padding: 5px 12px;
+  border-radius: 7px;
+  text-align: center;
+  font: 700 1.12rem/1.15 var(--serif);
+}
+
+/* ---------- Biblioteca ---------- */
+#menu .frame-text input[type="search"] {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 5px;
+  border: 1px solid rgba(60, 40, 12, 0.5);
+  font: 400 1rem var(--serif);
+  color: var(--ink);
+  background: rgba(88, 60, 20, 0.14);
+  box-shadow: inset 2px 3px 4px rgba(52, 34, 10, 0.32), 1px 1px 0 rgba(255, 244, 210, 0.5);
+  color-scheme: light;
+}
+#menu .frame-text input[type="search"]::placeholder { color: #6b5532; opacity: 1; }
+#menu #results {
+  list-style: none;
+  margin: 0;
+  padding: 0 4px 0 0;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(70, 48, 16, 0.5) transparent;
+}
+#menu #results li {
+  display: grid;
+  gap: 1px;
+  padding: 8px 2px;
+  border-bottom: 1px solid rgba(70, 48, 16, 0.3);
+  box-shadow: 0 1px 0 rgba(255, 244, 210, 0.45);
+}
+#menu #results li:last-child { border-bottom: 0; box-shadow: none; }
+#menu #results strong { font: 700 1rem/1.25 var(--serif); color: var(--ink); }
+#menu #results .type { font-size: 0.84rem; font-style: italic; color: var(--ink-soft); }
+#menu #results .model { font-size: 0.86rem; color: #6a4410; }
+
+/* ---------- Navegação entre as três telas ---------- */
+#menu .tabs {
+  flex: none;
+  width: 100%;
+  max-width: 440px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+#menu .tabs .plate { min-height: 44px; padding: 8px 6px; font-size: 0.95rem; }
+
+@media (max-height: 640px) {
+  #menu .frame-art { min-height: 96px; }
+  #menu .frame-text { padding: 10px 12px 13px; gap: 8px; font-size: 0.94rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #menu .plate { transition: none; }
+}

@@ -33,7 +33,8 @@ export async function startCardsMode(container, { targets, catalog, resolver, on
     const choice = resolver.resolve(card);
     const creature = makeCreature(choice, { height: 0.7 });
     // No MindAR a carta é o plano XY (largura 1) e Z sai da carta: deita o "para cima" da criatura em +Z.
-    creature.rotation.x = Math.PI / 2;
+    // Gira 180° em volta do próprio eixo: frente para o topo da carta, de costas para quem a colocou.
+    creature.rotation.set(Math.PI / 2, Math.PI, 0);
     creature.position.z = 0.01;
     anchor.group.add(creature);
     creatures.push(creature);
