@@ -56,20 +56,46 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
 /**
  * frame: { data: Float32Array (cinza), w, h }.
- * title: caixa do nome { x0, y0, x1, y1 } nas coordenadas do frame.
+ * title: caixa do texto lido { x0, y0, x1, y1 } nas coordenadas do frame.
+ * anchor: 'title' = é o nome, no topo da carta; 'type' = linha de tipo de token (embaixo, ~55-95% da altura).
  * Retorna [sup.esq, sup.dir, inf.dir, inf.esq] ou null.
  */
-export function detectCardQuad(frame, title) {
+const ANCHORS = {
+  // min/max: onde o centro do texto fica (× altura da carta, a partir do topo).
+  // above/extent: região de busca acima e abaixo do texto (× altura estimada). below: folga até a base (× altura do texto).
+  title: { min: 0.015, max: 0.2, above: 0.3, extent: 1.25, below: 3 },
+  type: { min: 0.5, max: 0.95, above: 1.45, extent: 0.65, below: 0.4 },
+};
+
+export function detectCardQuad(frame, title, { anchor = 'title' } = {}) {
+  const pos = ANCHORS[anchor] ?? ANCHORS.title;
+  const th = Math.max(4, title.y1 - title.y0);
+  const tw = Math.max(th, title.x1 - title.x0);
+  // Altura da carta: o nome tem ~4-6% dela. Margem larga para os dois lados do erro.
+  // Com a carta girada a caixa do OCR fica alta demais, por isso o limite pela largura do nome.
+  const capped = Math.max(Math.min(th / 0.03, tw * 4), tw * 1.6);
+  const q = detectWith(frame, title, pos, capped);
+  // Nome curto e centralizado (tokens: "GOBLIN") deixa a estimativa curta e a busca acha só um pedaço
+  // da carta. Se o resultado ficou pequeno para a altura do texto, tenta de novo pela altura.
+  const free = th / 0.03;
+  if (free > capped * 1.2 && (!q || quadHeight(q) < th / 0.09)) {
+    const q2 = detectWith(frame, title, pos, free);
+    if (q2 && (!q || quadHeight(q2) > quadHeight(q))) return q2;
+  }
+  return q;
+}
+
+const quadHeight = (q) => (dist(q[0], q[3]) + dist(q[1], q[2])) / 2;
+
+function detectWith(frame, title, pos, cardH) {
   const th = Math.max(4, title.y1 - title.y0);
   const tw = Math.max(th, title.x1 - title.x0);
   const tc = { x: (title.x0 + title.x1) / 2, y: (title.y0 + title.y1) / 2 };
-  // Altura da carta: o nome tem ~4-6% dela. Margem larga para os dois lados do erro.
-  // Com a carta girada a caixa do OCR fica alta demais, por isso o limite pela largura do nome.
-  const cardH = Math.max(Math.min(th / 0.03, tw * 4), tw * 1.6);
+  const { above } = pos;
   const rx0 = Math.max(1, Math.floor(title.x0 - cardH * 0.45));
   const rx1 = Math.min(frame.w - 2, Math.ceil(title.x0 + cardH * 1.0));
-  const ry0 = Math.max(1, Math.floor(tc.y - cardH * 0.3));
-  const ry1 = Math.min(frame.h - 2, Math.ceil(tc.y + cardH * 1.25));
+  const ry0 = Math.max(1, Math.floor(tc.y - cardH * above));
+  const ry1 = Math.min(frame.h - 2, Math.ceil(tc.y + cardH * pos.extent));
   const W = rx1 - rx0 + 1;
   const H = ry1 - ry0 + 1;
   if (W < 20 || H < 20) return null;
@@ -181,8 +207,8 @@ export function detectCardQuad(frame, title) {
   const yAt = (l, x) => (l.r - x * l.c) / l.s;
   const xAt = (l, y) => (l.r - y * l.s) / l.c;
 
-  const top = horiz.filter((l) => yAt(l, tc.x) < title.y0 + th * 0.3 && yAt(l, tc.x) > tc.y - cardH * 0.3).slice(0, 7);
-  const bottom = horiz.filter((l) => yAt(l, tc.x) > title.y1 + th * 3).slice(0, 9);
+  const top = horiz.filter((l) => yAt(l, tc.x) < title.y0 + th * 0.3 && yAt(l, tc.x) > tc.y - cardH * above).slice(0, 7);
+  const bottom = horiz.filter((l) => yAt(l, tc.x) > title.y1 + th * pos.below).slice(0, 9);
   const left = vert.filter((l) => xAt(l, tc.y) < title.x0 + th * 0.5).slice(0, 7);
   const right = vert.filter((l) => xAt(l, tc.y) > tc.x).slice(0, 9);
 
@@ -229,10 +255,10 @@ export function detectCardQuad(frame, title) {
           const aspect = ch / cw;
           if (aspect < 0.65 || aspect > 1.9) continue;
           if (Math.max(wTop, wBot) / Math.min(wTop, wBot) > 1.8 || Math.max(hL, hR) / Math.min(hL, hR) > 1.8) continue;
-          // O nome fica no topo da carta e ocupa boa parte da largura.
+          // O nome fica no topo da carta (a linha de tipo do token, embaixo) e ocupa boa parte da largura.
           const topY = yAt(T, tc.x);
           const rel = (tc.y - topY) / ch;
-          if (rel < 0.015 || rel > 0.2) continue;
+          if (rel < pos.min || rel > pos.max) continue;
           if (tw > cw * 1.05 || tw < cw * 0.15) continue;
           const s = [support(q[0], q[1]), support(q[1], q[2]), support(q[2], q[3]), support(q[3], q[0])];
           const mean = (s[0] + s[1] + s[2] + s[3]) / 4;
