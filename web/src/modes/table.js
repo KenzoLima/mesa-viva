@@ -7,15 +7,15 @@
 
 import * as THREE from 'three';
 import { XREstimatedLight } from 'three/addons/webxr/XREstimatedLight.js';
-import { makeCreature, addLights } from '../creatures.js';
+import { addLights } from '../creatures.js';
 import {
-  TableFrame, CalibrationStateMachine, State, Seat, StableFlag, ScanProgress, polygonAreaXZ, creatureHeight,
+  TableFrame, CalibrationStateMachine, State, Seat, StableFlag, ScanProgress, polygonAreaXZ,
 } from '../table/tableFrame.js';
+import {
+  GOLD, HANDLE_OFFSET, v3, frameMatrix, frameFromMatrix, makeArea, setAreaOpacity, disposeTree,
+  makeTableRig, fitShadowCatcher, summonOnTable, updateCreatures, animateAreaFade,
+} from '../table/tableVisuals.js';
 
-const GOLD = 0xd4af37;
-const GOLD_TEXT = '#e6c27a';
-const LIFT = 0.002; // desenho da área um pouco acima do plano, para não brigar com a profundidade
-const HANDLE_OFFSET = 0.07;
 const MIN_TABLE_AREA = 0.15; // m², igual ao Unity
 const DRAG_THRESHOLD = 0.015; // abaixo disso o toque é toque, não arrasto
 
@@ -28,27 +28,6 @@ export async function isTableModeSupported() {
 }
 
 // ---------------------------------------------------------------- geometria auxiliar
-
-const v3 = (p) => new THREE.Vector3(p.x, p.y, p.z);
-
-/** Mesa → matriz de mundo: X = direita, Y = cima, -Z = frente (do jogador para o oponente). */
-function frameMatrix(frame, m = new THREE.Matrix4()) {
-  const r = frame.right;
-  const f = frame.forward;
-  m.makeBasis(new THREE.Vector3(r.x, 0, r.z), new THREE.Vector3(0, 1, 0), new THREE.Vector3(-f.x, 0, -f.z));
-  m.setPosition(frame.center.x, frame.center.y, frame.center.z);
-  return m;
-}
-
-/** Matriz da âncora → TableFrame (a âncora guarda a pose da mesa confirmada). */
-function frameFromMatrix(m, width, depth) {
-  const pos = new THREE.Vector3().setFromMatrixPosition(m);
-  const back = new THREE.Vector3().setFromMatrixColumn(m, 2);
-  return new TableFrame({ x: pos.x, y: pos.y, z: pos.z }, { x: -back.x, y: 0, z: -back.z }, width, depth);
-}
-
-/** Coordenada da mesa (x direita, y frente) → local do grupo da mesa. */
-const local = (t, h = 0) => new THREE.Vector3(t.x, h, -t.y);
 
 function rayFromPose(pose) {
   const m = new THREE.Matrix4().fromArray(pose.transform.matrix);
@@ -174,109 +153,6 @@ class PlaneGrid {
   }
 }
 
-function labelMesh(text, width) {
-  const c = document.createElement('canvas');
-  c.width = 512;
-  c.height = 128;
-  const ctx = c.getContext('2d');
-  ctx.font = '600 84px Georgia, "Times New Roman", serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.shadowColor = 'rgba(0,0,0,0.85)';
-  ctx.shadowBlur = 12;
-  ctx.fillStyle = GOLD_TEXT;
-  ctx.fillText(text, 256, 68);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false });
-  mat.userData.base = 1;
-  // PlaneGeometry fica em XY; deitada, o "para cima" do texto aponta para a frente (-Z local).
-  return new THREE.Mesh(new THREE.PlaneGeometry(width, width / 4).rotateX(-Math.PI / 2), mat);
-}
-
-/** Área de jogo (TableAreaVisualizer): borda, grade de 10 cm, linha do meio, seta, VOCÊ/OPONENTE e alça. */
-function makeArea(width, depth) {
-  const g = new THREE.Group();
-  const w = width / 2;
-  const d = depth / 2;
-  const lineMat = (opacity) => {
-    const m = new THREE.LineBasicMaterial({ color: GOLD, transparent: true, opacity, depthWrite: false });
-    m.userData.base = opacity;
-    return m;
-  };
-  const segs = (pairs, mat) => {
-    const pts = pairs.flatMap(([a, b]) => [a.x, a.y, a.z, b.x, b.y, b.z]);
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-    return new THREE.LineSegments(geo, mat);
-  };
-  const corners = [[-w, -d], [w, -d], [w, d], [-w, d]].map(([x, y]) => local({ x, y }, LIFT));
-  g.add(segs(corners.map((c, i) => [c, corners[(i + 1) % 4]]), lineMat(1)));
-  const inner = [];
-  for (let x = -w + 0.1; x < w - 0.01; x += 0.1) inner.push([local({ x, y: -d }, LIFT), local({ x, y: d }, LIFT)]);
-  for (let y = -d + 0.1; y < d - 0.01; y += 0.1) inner.push([local({ x: -w, y }, LIFT), local({ x: w, y }, LIFT)]);
-  g.add(segs(inner, lineMat(0.22)));
-  g.add(segs([[local({ x: -w, y: 0 }, LIFT * 2), local({ x: w, y: 0 }, LIFT * 2)]], lineMat(1)));
-
-  // Véu translúcido para a área "existir" mesmo onde a grade é fina.
-  const veilMat = new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.07, depthWrite: false, side: THREE.DoubleSide });
-  veilMat.userData.base = 0.07;
-  const veil = new THREE.Mesh(new THREE.PlaneGeometry(width, depth).rotateX(-Math.PI / 2), veilMat);
-  veil.position.y = LIFT * 0.5;
-  g.add(veil);
-
-  // Seta do seu lado apontando para o oponente.
-  const arrowMat = new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide });
-  arrowMat.userData.base = 0.85;
-  const s = Math.min(width, depth) * 0.08;
-  const shape = new THREE.Shape();
-  shape.moveTo(0, s);
-  shape.lineTo(s * 0.8, -s * 0.4);
-  shape.lineTo(s * 0.25, -s * 0.4);
-  shape.lineTo(s * 0.25, -s * 1.1);
-  shape.lineTo(-s * 0.25, -s * 1.1);
-  shape.lineTo(-s * 0.25, -s * 0.4);
-  shape.lineTo(-s * 0.8, -s * 0.4);
-  shape.closePath();
-  const arrow = new THREE.Mesh(new THREE.ShapeGeometry(shape).rotateX(-Math.PI / 2), arrowMat);
-  arrow.position.copy(local({ x: 0, y: -d * 0.22 }, LIFT * 2));
-  g.add(arrow);
-
-  const labelW = Math.min(0.24, width * 0.42);
-  const me = labelMesh('VOCÊ', labelW);
-  me.position.copy(local({ x: 0, y: -d * 0.62 }, LIFT * 2));
-  const opp = labelMesh('OPONENTE', labelW);
-  opp.position.copy(local({ x: 0, y: d * 0.55 }, LIFT * 2));
-  g.add(me, opp);
-
-  // Alça de rotação além da borda do oponente.
-  const handleMat = new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 1, depthWrite: false });
-  handleMat.userData.base = 1;
-  const handle = new THREE.Group();
-  handle.add(new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.004, 24), handleMat));
-  handle.add(new THREE.Mesh(new THREE.RingGeometry(0.03, 0.036, 32).rotateX(-Math.PI / 2), handleMat));
-  handle.position.copy(local({ x: 0, y: d + HANDLE_OFFSET }, LIFT * 2));
-  handle.name = 'handle';
-  g.add(handle, segs([[local({ x: 0, y: d }, LIFT), local({ x: 0, y: d + HANDLE_OFFSET - 0.036 }, LIFT)]], lineMat(0.8)));
-  return g;
-}
-
-function setAreaOpacity(area, k) {
-  area.traverse((o) => {
-    const m = o.material;
-    if (m?.userData.base !== undefined) m.opacity = m.userData.base * k;
-  });
-  area.visible = k > 0.001;
-}
-
-function disposeTree(obj) {
-  obj.traverse((o) => {
-    o.geometry?.dispose();
-    o.material?.map?.dispose();
-    o.material?.dispose();
-  });
-}
-
 // ---------------------------------------------------------------- modo
 
 const MESSAGES = {
@@ -338,24 +214,7 @@ export async function startTableMode({ ui, resolver, pickCard, onEnd }) {
   const planeGrid = new PlaneGrid(scene);
 
   // Tudo que pertence à mesa fica neste grupo, que segue a âncora depois de confirmar.
-  const tableRoot = new THREE.Group();
-  tableRoot.matrixAutoUpdate = false;
-  tableRoot.visible = false;
-  scene.add(tableRoot);
-  const shadowCatcher = new THREE.Mesh(
-    new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2),
-    new THREE.ShadowMaterial({ opacity: 0.32 }),
-  );
-  shadowCatcher.receiveShadow = true;
-  tableRoot.add(shadowCatcher);
-  // Luz só para as sombras (o "shadow catcher" é o maior ganho de realismo por esforço).
-  const shadowLight = new THREE.DirectionalLight(0xffffff, 0.5);
-  shadowLight.castShadow = true;
-  shadowLight.shadow.mapSize.set(1024, 1024);
-  Object.assign(shadowLight.shadow.camera, { left: -0.7, right: 0.7, top: 0.7, bottom: -0.7, near: 0.05, far: 3 });
-  shadowLight.shadow.bias = -0.0005;
-  shadowLight.position.set(0.25, 1, 0.35);
-  tableRoot.add(shadowLight, shadowLight.target);
+  const { tableRoot, shadowCatcher } = makeTableRig(scene);
 
   renderer.xr.setReferenceSpaceType('local');
   await renderer.xr.setSession(session);
@@ -442,7 +301,7 @@ export async function startTableMode({ ui, resolver, pickCard, onEnd }) {
       area = makeArea(f.width, f.depth);
       areaSize = key;
       tableRoot.add(area);
-      shadowCatcher.scale.set((f.width + 0.5) / 2, 1, (f.depth + 0.5) / 2);
+      fitShadowCatcher(shadowCatcher, f);
     }
     frameMatrix(f, tableRoot.matrix);
     tableRoot.matrixWorldNeedsUpdate = true;
@@ -557,26 +416,18 @@ export async function startTableMode({ ui, resolver, pickCard, onEnd }) {
   function summon(e) {
     const p = touchOnTable(e.inputSource, e.frame) ?? touchHits.get(e.inputSource) ?? (hasHit ? hitPos.clone() : null);
     if (!p || !frame.isOnTable(p, 0.05)) return;
-    const side = frame.sideOf(p);
+    const card = pickCard();
+    if (!card) {
+      say('Escolha uma carta para invocar', 2.5, 'warn');
+      return;
+    }
+    const { side, creature, choice } = summonOnTable({ frame, p, card, resolver, tableRoot });
     if (side === 'outside') {
       vibrate([40, 40, 40]);
       fade = { t: 0, mode: 'flash' };
       say('Fora da mesa: toque dentro da área', 2.5, 'warn');
       return;
     }
-    const card = pickCard();
-    if (!card) {
-      say('Escolha uma carta para invocar', 2.5, 'warn');
-      return;
-    }
-    const choice = resolver.resolve(card);
-    const creature = makeCreature(choice, { height: creatureHeight(card.power) });
-    const t = frame.worldToTable(p);
-    creature.position.copy(local(t));
-    // Do seu lado a criatura olha para o oponente (-Z local); do lado dele, para você.
-    creature.rotation.y = side === 'near' ? Math.PI : 0;
-    creature.userData.spawn();
-    tableRoot.add(creature);
     creatures.push(creature);
     vibrate(15);
     say(`${card.displayName} → ${resolver.label(choice.modelId)} (${side === 'near' ? 'seu lado' : 'lado do oponente'})`, 3);
@@ -673,18 +524,7 @@ export async function startTableMode({ ui, resolver, pickCard, onEnd }) {
     }
 
     // Confirmar: a área pisca e some. Toque fora: aparece de relance.
-    if (fade && area) {
-      fade.t += dt;
-      if (fade.mode === 'confirm') {
-        const blink = fade.t < 0.6 ? 0.55 + 0.45 * Math.cos(fade.t * Math.PI * 2 / 0.2) : 1;
-        const out = fade.t < 0.6 ? 1 : Math.max(0, 1 - (fade.t - 0.6) / 0.6);
-        setAreaOpacity(area, blink * out);
-        if (fade.t >= 1.2) fade = null;
-      } else {
-        setAreaOpacity(area, fade.t < 0.2 ? fade.t / 0.2 : Math.max(0, 1 - (fade.t - 1) / 0.5));
-        if (fade.t >= 1.5) fade = null;
-      }
-    }
+    if (fade && area && animateAreaFade(area, fade, dt)) fade = null;
 
     reticle.visible = hasHit && started && !lost.value && sm.state !== State.Confirmed && sm.state !== State.Adjusting;
     if (notice && clockTime >= notice.until) {
@@ -692,15 +532,7 @@ export async function startTableMode({ ui, resolver, pickCard, onEnd }) {
       renderStatus();
     }
     // Rastreamento perdido: as criaturas congelam (PLANO §5.3).
-    if (!lost.value) {
-      for (const c of creatures) {
-        c.userData.update(dt);
-        if (!c.userData.shadowed && !c.userData.loading) {
-          c.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-          c.userData.shadowed = true;
-        }
-      }
-    }
+    if (!lost.value) updateCreatures(creatures, dt);
     renderer.render(scene, camera);
   });
 

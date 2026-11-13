@@ -89,12 +89,22 @@ $('btn-battlefield').addEventListener('click', async () => {
   }
 });
 
-// ---------- Modo Mesa (WebXR, Android) ----------
-if (await isTableModeSupported()) {
+// ---------- Modo Mesa ----------
+// Android com ARCore: WebXR (o app acha a mesa sozinho e o celular pode se mexer).
+// PC, iPhone e Androids sem ARCore: câmera parada num suporte, calibrada por uma folha A4 (tableCamera.js).
+const { isCameraTableSupported } = await import('./modes/tableCamera.js');
+const hasXr = await isTableModeSupported();
+const hasCamera = isCameraTableSupported();
+if (hasXr) {
   $('btn-table').disabled = false;
-  $('table-info').textContent = 'Detecta a mesa e invoca criaturas onde você tocar.';
+  $('btn-table').textContent = 'Mesa (RA)';
+  $('btn-table-cam').hidden = !hasCamera;
+  $('table-info').textContent = 'RA: detecta a mesa e invoca criaturas onde você tocar. Câmera parada: celular num suporte, com uma folha A4.';
+} else if (hasCamera) {
+  $('btn-table').disabled = false;
+  $('table-info').textContent = 'Câmera parada (webcam ou celular num suporte): marque uma folha A4 na mesa e invoque criaturas onde clicar.';
 } else {
-  $('table-info').textContent = 'Precisa do Chrome no Android com ARCore. No iPhone, use o campo de batalha.';
+  $('table-info').textContent = 'Este navegador não dá acesso à câmera.';
 }
 
 // Com o catálogo inteiro (~30 mil cartas) não dá para listar tudo: busca e mostra as melhores.
@@ -113,31 +123,38 @@ $('xr-search').addEventListener('input', (e) => {
   if (e.target.value.trim().length >= 2) fillCardOptions(catalog.search(e.target.value, 30));
 });
 
+function tableUi(overlay) {
+  return {
+    overlay,
+    status: $('xr-status'),
+    progress: $('xr-progress'),
+    adjust: $('xr-adjust'),
+    rotate: $('xr-rotate'),
+    flip: $('xr-flip'),
+    seats: [...overlay.querySelectorAll('[data-seat]')],
+    sizeRow: $('xr-size-row'),
+    size: $('xr-size'),
+    confirm: $('xr-confirm'),
+    retry: $('xr-retry'),
+    recalibrate: $('xr-recalibrate'),
+    cardSelect: $('xr-card'),
+    exit: $('xr-exit'),
+    referenceRow: $('xr-reference-row'),
+    reference: $('xr-reference'),
+    corners: $('xr-corners'),
+  };
+}
+
 // table.js já foi importado lá em cima (isTableModeSupported): o import abaixo resolve na hora,
 // e o pedido da sessão de RA ainda conta como resposta ao toque.
-$('btn-table').addEventListener('click', async () => {
+async function startXrTable() {
   const { startTableMode } = await import('./modes/table.js');
   const overlay = $('xr-overlay');
   overlay.hidden = false;
   $('menu').hidden = true;
   try {
     await startTableMode({
-      ui: {
-        overlay,
-        status: $('xr-status'),
-        progress: $('xr-progress'),
-        adjust: $('xr-adjust'),
-        rotate: $('xr-rotate'),
-        flip: $('xr-flip'),
-        seats: [...overlay.querySelectorAll('[data-seat]')],
-        sizeRow: $('xr-size-row'),
-        size: $('xr-size'),
-        confirm: $('xr-confirm'),
-        retry: $('xr-retry'),
-        recalibrate: $('xr-recalibrate'),
-        cardSelect: $('xr-card'),
-        exit: $('xr-exit'),
-      },
+      ui: tableUi(overlay),
       resolver,
       pickCard: () => catalog.get(select.value),
       onEnd: () => {
@@ -151,4 +168,40 @@ $('btn-table').addEventListener('click', async () => {
     $('menu').hidden = false;
     $('table-info').textContent = `Não consegui iniciar a RA: ${err.message ?? err}`;
   }
-});
+}
+
+let leaveCameraTable = null;
+async function startCameraTable() {
+  const view = $('table-cam');
+  const overlay = $('xr-overlay');
+  view.hidden = false;
+  overlay.hidden = false;
+  $('menu').hidden = true;
+  // Tela cheia precisa ser pedida já no toque (no iPhone, sem a API, o CSS já ocupa a tela).
+  document.documentElement.requestFullscreen?.({ navigationUI: 'hide' }).catch(() => {});
+  screen.orientation?.lock?.('landscape').catch(() => {});
+  const close = () => {
+    leaveCameraTable = null;
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    view.hidden = true;
+    overlay.hidden = true;
+    $('menu').hidden = false;
+  };
+  try {
+    const { startCameraTableMode } = await import('./modes/tableCamera.js');
+    leaveCameraTable = await startCameraTableMode({
+      view,
+      ui: tableUi(overlay),
+      resolver,
+      pickCard: () => catalog.get(select.value),
+      onEnd: close,
+    });
+  } catch (err) {
+    console.error(err);
+    close();
+    $('table-info').textContent = `Não consegui abrir a câmera: ${err.message ?? err}`;
+  }
+}
+
+$('btn-table').addEventListener('click', () => (hasXr ? startXrTable() : startCameraTable()));
+$('btn-table-cam').addEventListener('click', () => startCameraTable());
