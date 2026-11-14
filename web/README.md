@@ -74,6 +74,12 @@ Se a câmera levar um esbarrão (girar ou inclinar ~1–2° ou mais), aparece "A
 
 A matemática fica em `src/table/cameraPose.js` (homografia, focal pelo método de Zhang, pose, "imã", câmera mexida), com testes em `tests/cameraPose.test.js`. O desenho da mesa é o mesmo do modo RA (`src/table/tableVisuals.js`).
 
+## Zonas desenhadas na mesa (os dois modos Mesa)
+
+Depois de **Confirmar**, a mesa continua desenhada bem fraca, como um playmat (`zoneLayout` e `makeZones` em `src/table/tableVisuals.js`, testes em `tests/tableZones.test.js`). Em cada metade, do ponto de vista de quem senta ali: **Grimório**, **Cemitério** e **Exílio** na coluna da direita, do tamanho de uma carta, do jogador para o meio; **Terrenos** junto à borda; e o **Campo de batalha** até a linha do meio. O lado do oponente é espelhado, com os nomes virados para ele, e numa mesa menor tudo encolhe junto. A grade, a seta, a alça e VOCÊ/OPONENTE só aparecem enquanto você ajusta.
+
+As zonas são só desenho: o app ainda não trata de outro jeito uma carta posta no cemitério ou no exílio.
+
 ## Reconhecimento das cartas na mesa (os dois modos Mesa)
 
 Depois de confirmar a mesa, com **Reconhecer as cartas na mesa** ligado, o app lê as cartas sozinho e a criatura de cada uma surge em pé sobre ela, olhando para onde o topo da carta aponta:

@@ -121,6 +121,15 @@ function proceduralBody(choice) {
  * e com a altura dada. Modelo com a origem fora do corpo aparecia deslocado, fora da carta.
  */
 function fitHeight(obj, height) {
+  // Modelo com esqueleto: mede na pose atual dos ossos (a do "parado" já aplicada), não na pose de
+  // ligação. O dragão voando ficava ~2× mais alto e solto acima da carta medindo a pose de ligação.
+  obj.updateMatrixWorld(true);
+  obj.traverse((o) => {
+    if (o.isSkinnedMesh) {
+      o.skeleton.update();
+      o.computeBoundingBox();
+    }
+  });
   const box = new THREE.Box3().setFromObject(obj);
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
@@ -158,7 +167,6 @@ export function makeCreature(choice, { height = 0.6, waitForModel = false } = {}
     pivot.visible = true;
     if (!gltf) return;
     const model = cloneSkinned(gltf.scene);
-    fitHeight(model, finalHeight);
     pivot.remove(body);
     body = model;
     pivot.add(model);
@@ -166,6 +174,7 @@ export function makeCreature(choice, { height = 0.6, waitForModel = false } = {}
       mixer = new THREE.AnimationMixer(model);
       idle = mixer.clipAction(idleClip(gltf.animations));
       idle.play();
+      mixer.update(0); // aplica a pose do "parado" antes de medir
       const clip = strongestAttack(gltf.animations);
       if (clip) {
         strike = mixer.clipAction(clip);
@@ -184,6 +193,7 @@ export function makeCreature(choice, { height = 0.6, waitForModel = false } = {}
         death.clampWhenFinished = true; // fica caída até sumir
       }
     }
+    fitHeight(model, finalHeight);
   });
 
   // Morte (a carta saiu da mesa): toca o clipe de morte (ou tomba de lado), segura caída um instante e

@@ -4,9 +4,19 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#15100d" />
+  <meta name="description" content="Suas cartas de Magic ganham vida sobre a mesa: a câmera reconhece a carta e a criatura dela surge em 3D." />
   <title>Mesa Viva</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+  <link rel="icon" href="./icons/icon-192.png" sizes="192x192" type="image/png" />
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Mesa Viva" />
   <link rel="stylesheet" href="./src/style.css" />
   <link rel="stylesheet" href="./src/menu.css" />
+  <link rel="stylesheet" href="./src/ui.css" />
 </head>
 <body>
   <main id="menu">
@@ -58,7 +68,7 @@
       <div class="frame-type"><span>Artefato Lendário — Mesa</span><i class="set-mark" aria-hidden="true"></i></div>
       <div class="frame-text">
         <p>Suas cartas de Magic ganham vida sobre a mesa.</p>
-        <button class="plate" data-go="battle">Batalha</button>
+        <button id="btn-home-battle" class="plate">Ir para a batalha</button>
         <button class="plate minor" data-go="library">Biblioteca</button>
         <p class="flavor">Aponte a câmera para uma carta e a criatura dela se ergue em 3D.</p>
       </div>
@@ -155,8 +165,8 @@
       </div>
       <div class="frame-type"><span>Terreno — Arena</span><i class="set-mark" aria-hidden="true"></i></div>
       <div class="frame-text">
-        <button id="btn-battlefield" class="plate">Ir para o campo de batalha</button>
-        <p class="hint">Abre a câmera em tela cheia e reconhece suas cartas sozinho, sem cadastro.</p>
+        <button id="btn-battlefield" class="plate">Campo de batalha</button>
+        <p class="hint">Segure o celular e aponte para as cartas. Nada para preparar: o jeito mais rápido de jogar.</p>
         <button id="btn-table" class="plate minor" aria-describedby="table-info" disabled>Mesa</button>
         <button id="btn-table-cam" class="plate minor" aria-describedby="table-info" hidden>Mesa com câmera parada</button>
         <p id="table-info" class="hint">Verificando o aparelho…</p>
@@ -177,9 +187,33 @@
   <!-- Campo de batalha: câmera em tela cheia + reconhecimento automático (OCR) -->
   <div id="battlefield" class="ar-view" hidden>
     <div class="hud">
-      <p id="bf-status" class="status"></p>
-      <button id="bf-exit" class="ghost">Sair do campo de batalha</button>
+      <p id="bf-status" class="status" role="status" aria-live="polite"></p>
+      <button id="bf-help" class="ghost hud-round" type="button" aria-label="Como jogar">?</button>
+      <button id="bf-retry" class="ghost" type="button" hidden>Tentar de novo</button>
+      <button id="bf-exit" class="ghost" type="button">Sair do campo de batalha</button>
     </div>
+
+    <!-- Dicas da primeira vez (e no botão "?") -->
+    <section id="bf-tips" class="mv-sheet bf-tips" aria-labelledby="bf-tips-title" hidden>
+      <h2 id="bf-tips-title">Como jogar</h2>
+      <ol>
+        <li><strong>Ponha a carta na mesa</strong> com o nome bem visível: a criatura dela surge em cima.</li>
+        <li><strong>Vire a carta de lado</strong> para a criatura atacar. Desvire e ela volta a esperar.</li>
+        <li><strong>Tire a carta da mesa</strong> e a criatura morre.</li>
+        <li>Leu a carta errada? <strong>Toque no nome</strong> embaixo da criatura e escolha a certa.</li>
+      </ol>
+      <button id="bf-tips-ok" class="mv-plate" type="button">Entendi</button>
+    </section>
+
+    <!-- "Não é essa carta?" (fica dentro do campo de batalha para aparecer em tela cheia) -->
+    <dialog id="card-picker" class="mv-sheet" aria-labelledby="cp-title">
+      <h2 id="cp-title">Não é essa carta?</h2>
+      <p class="cp-read">Lida como <strong id="cp-read"></strong>. Qual é a carta certa?</p>
+      <input id="cp-search" type="search" placeholder="Nome em inglês ou português" aria-label="Buscar a carta certa" autocomplete="off" />
+      <ul id="cp-results" class="cp-results"></ul>
+      <p id="cp-empty" class="cp-empty" hidden>Nenhuma carta com esse nome.</p>
+      <button id="cp-cancel" class="mv-plate minor" type="button">Cancelar</button>
+    </dialog>
   </div>
 
   <!-- Modo Mesa com câmera parada (PC, iPhone, Android sem ARCore): vídeo + 3D + cantos -->
@@ -217,6 +251,7 @@
       <label id="xr-recognize-row" class="xr-check" hidden>
         <input id="xr-recognize" type="checkbox" checked />
         <span>Reconhecer as cartas na mesa <small id="xr-scan" aria-live="polite"></small></span>
+        <span id="xr-scan-bar" class="xr-scan-bar" aria-hidden="true" hidden><i></i></span>
       </label>
       <div class="xr-row">
         <button id="xr-confirm" type="button" hidden>Confirmar mesa</button>
@@ -227,6 +262,27 @@
       </div>
     </div>
   </div>
+
+  <!-- Biblioteca: a criatura da carta em 3D e a troca do modelo -->
+  <dialog id="card-detail" class="mv-sheet card-detail" aria-labelledby="cd-name">
+    <header>
+      <h2 id="cd-name"></h2>
+      <p id="cd-alt" class="cd-alt"></p>
+      <p id="cd-type" class="cd-type"></p>
+    </header>
+    <div id="cd-stage" class="cd-stage">
+      <div id="cd-loading" class="cd-loading" role="status" aria-label="Carregando a criatura" hidden></div>
+    </div>
+    <p class="cd-model"><span id="cd-model-text"></span> <small>· arraste para girar</small></p>
+    <label id="cd-model-row" class="cd-model-row">Criatura na mesa
+      <select id="cd-model"></select>
+    </label>
+    <div class="cd-actions">
+      <button id="cd-attack" class="mv-plate minor" type="button">Atacar</button>
+      <a class="mv-plate minor" href="./bestiario3d.html">Bestiário 3D completo</a>
+      <button id="cd-close" class="mv-plate" type="button">Fechar</button>
+    </div>
+  </dialog>
 
   <script type="module" src="./src/main.js"></script>
 </body>
