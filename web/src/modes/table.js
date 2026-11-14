@@ -15,6 +15,7 @@ import {
   GOLD, HANDLE_OFFSET, v3, frameMatrix, frameFromMatrix, makeArea, setAreaOpacity, disposeTree,
   makeTableRig, fitShadowCatcher, animateAreaFade, RecognizedCreatures,
 } from '../table/tableVisuals.js';
+import { scanReporter } from '../table/scanUi.js';
 import { CardWatch } from '../table/cardWatch.js';
 import { TableCards, planScans, scanOrder, coverage, BlockMemory } from '../table/tableCards.js';
 import { TableCardScanner, blockSignature, signatureChange } from '../table/cardScanner.js';
@@ -396,7 +397,8 @@ export async function startTableMode({ ui, catalog, resolver, onEnd }) {
   let shotRequest = null; // resolve da próxima imagem pedida ao quadro
   let ended = false;
   let scanner = null;
-  ui.scanInfo.textContent = camImage ? '' : 'este celular não entrega a imagem da câmera na RA: use a Mesa com câmera parada';
+  const report = scanReporter(ui);
+  report.message(camImage ? '' : 'este celular não entrega a imagem da câmera na RA: use a Mesa com câmera parada');
   ui.recognize.disabled = !camImage;
 
   const watch = new CardWatch(cards, recognized);
@@ -407,7 +409,7 @@ export async function startTableMode({ ui, catalog, resolver, onEnd }) {
     cards.clear();
     recognized.clear();
     watch.clear();
-    if (camImage) ui.scanInfo.textContent = '';
+    if (camImage) report.message('');
   }
 
   let jobIndex = 0;
@@ -421,7 +423,7 @@ export async function startTableMode({ ui, catalog, resolver, onEnd }) {
       }
       try {
         if (!scanner) {
-          ui.scanInfo.textContent = 'preparando a leitura…';
+          report.message('preparando a leitura… (só na primeira vez)');
           scanner = await new TableCardScanner(catalog).ready();
         }
         const shot = await new Promise((resolve) => { shotRequest = resolve; });
@@ -438,7 +440,7 @@ export async function startTableMode({ ui, catalog, resolver, onEnd }) {
         // A mesa é lida por blocos (seu lado, lado do oponente, cartas viradas), um por foto.
         const order = scanOrder(planScans(at, visibleInShot));
         if (!order.length) {
-          ui.scanInfo.textContent = 'aponte a câmera para a área de jogo';
+          report.message('aponte a câmera para a área de jogo');
           await new Promise((r) => setTimeout(r, 500));
           continue;
         }
@@ -451,17 +453,17 @@ export async function startTableMode({ ui, catalog, resolver, onEnd }) {
         }
         if (import.meta.env?.DEV) window.__xrTableDebug = { src, job, toImage, shot, scanner, cards, watch };
         const known = [...cards.entries.values()].map((e) => ({ center: e.pos, yaw: e.yaw }));
+        report.reading(((jobIndex - 1) % order.length) + 1, order.length, cards.entries.size);
         const detections = await scanner.scan(src, job, toImage, known);
         memory.remember(job, sig, clockTime, (scanner.last?.unresolved ?? 0) > 0);
         if (ended || sm.state !== State.Confirmed || !ui.recognize.checked || shot.epoch !== epoch) continue;
         // Só conta como sumida a carta que ESTE bloco, nesta foto, teria lido.
         const couldRead = (pos, e) => coverage(job, pos, e, (q) => !lost.value && visibleInShot(q));
         recognized.apply(cards.update(detections, clockTime, couldRead));
-        const n = cards.entries.size;
-        ui.scanInfo.textContent = n ? `${n} carta${n > 1 ? 's' : ''} na mesa` : 'nenhuma carta lida ainda';
+        report.done(cards.entries.size);
       } catch (err) {
         console.warn('Leitura das cartas falhou', err);
-        ui.scanInfo.textContent = 'a leitura falhou; tentando de novo';
+        report.message('a leitura falhou; tentando de novo');
         await new Promise((r) => setTimeout(r, 1500));
       }
     }

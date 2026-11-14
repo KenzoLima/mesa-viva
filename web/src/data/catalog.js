@@ -85,17 +85,36 @@ export class CardCatalog {
       .sort((a, b) => rank(a) - rank(b));
   }
 
-  /** Busca por prefixo, para o campo de pesquisa. */
+  /**
+   * Busca para o campo de pesquisa (inglês ou português), da mais para a menos parecida:
+   * nome exato, nome que começa com o texto, palavra do nome que começa com o texto, texto no meio.
+   * Dentro do mesmo nível, o nome mais curto primeiro. "bolt": Boltwave e Boltfire (começam com o
+   * texto), depois Lightning Bolt (palavra do nome), depois Electro's Bolt… e só então Thunderbolt.
+   */
   search(text, limit = 20) {
     const key = normalizeName(text);
     if (!key) return [];
-    const out = [];
+    const best = new Map(); // oracleId -> [nível, tamanho do nome]
+    const wordStart = ` ${key}`;
     for (const [name, ids] of this.byName) {
-      if (!name.includes(key)) continue;
-      for (const id of ids) if (!out.includes(id)) out.push(id);
-      if (out.length >= limit) break;
+      const at = name.indexOf(key);
+      if (at < 0) continue;
+      let rank = 3;
+      if (name === key) rank = 0;
+      else if (at === 0) rank = 1;
+      else if (name.includes(wordStart)) rank = 2;
+      for (const id of ids) {
+        const prev = best.get(id);
+        if (!prev || rank < prev[0] || (rank === prev[0] && name.length < prev[1])) best.set(id, [rank, name.length]);
+      }
     }
-    return out.map((id) => this.byId.get(id));
+    // Empate: o nome completo mais curto ("Lightning Bolt" antes de "Emeritus of Conflict // Lightning Bolt").
+    const full = (id) => this.byId.get(id)?.name.length ?? 0;
+    return [...best]
+      .sort((a, b) => a[1][0] - b[1][0] || a[1][1] - b[1][1] || full(a[0]) - full(b[0]))
+      .slice(0, limit)
+      .map(([id]) => this.byId.get(id))
+      .filter(Boolean);
   }
 
   static async load(baseUrl = 'data/') {

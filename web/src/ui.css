@@ -1,0 +1,290 @@
+/* ==========================================================================
+   Peças em comum entre o menu e as telas de câmera, no mesmo ouro envelhecido
+   do menu: placas de bronze (botões), folhas de pergaminho (diálogos e dicas)
+   e o painel escuro com friso dourado que fica sobre a câmera.
+   ========================================================================== */
+:root {
+  --mv-ink: #2a1d0c;
+  --mv-ink-soft: #5b4526;
+  --mv-parch-hi: #eee0b9;
+  --mv-parch: #dfcd9d;
+  --mv-parch-lo: #c2aa74;
+  --mv-metal-hi: #c9ad6e;
+  --mv-metal: #9a7a3e;
+  --mv-serif: "Palatino Linotype", Palatino, "Book Antiqua", "URW Palladio L", Georgia, serif;
+  /* painel sobre a câmera: bronze escuro translúcido */
+  --mv-glass: linear-gradient(160deg, #2b2116ee 0%, #1a130ef2 60%, #120d0af5 100%);
+  --mv-trim: #b8954f;
+}
+
+/* ---------- Placa de bronze (botão) ---------- */
+.mv-plate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 9px 16px;
+  border: 0;
+  border-radius: 7px;
+  font: 700 1rem/1.2 var(--mv-serif);
+  letter-spacing: 0.02em;
+  color: var(--mv-ink);
+  text-decoration: none;
+  text-align: center;
+  text-shadow: 0 1px 0 rgba(255, 236, 190, 0.38);
+  background: linear-gradient(150deg, var(--mv-metal-hi) 0%, #b3955a 22%, var(--mv-metal) 60%, #7b5e2f 100%);
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 240, 200, 0.58),
+    inset -1px -1px 0 rgba(30, 19, 6, 0.55),
+    1px 2px 2px rgba(18, 11, 3, 0.55);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 90ms ease-out, box-shadow 90ms ease-out;
+}
+.mv-plate.minor { font-weight: 600; font-size: 0.94rem; }
+.mv-plate:active {
+  transform: translate(1px, 2px);
+  box-shadow: inset 2px 3px 5px rgba(22, 13, 3, 0.6), inset -1px -1px 0 rgba(255, 236, 190, 0.3);
+}
+.mv-plate:focus-visible { outline: 2px solid var(--mv-ink); outline-offset: 2px; }
+
+/* ---------- Folha de pergaminho (diálogos e dicas) ---------- */
+.mv-sheet {
+  width: min(92vw, 440px);
+  max-height: min(88dvh, 720px);
+  margin: auto;
+  padding: 16px 18px 18px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--mv-ink);
+  font: 400 0.98rem/1.42 var(--mv-serif);
+  background: radial-gradient(120% 110% at 0% 0%, var(--mv-parch-hi) 0%, var(--mv-parch) 55%, var(--mv-parch-lo) 100%);
+  box-shadow:
+    0 0 0 3px #7c5f2e,
+    0 0 0 5px #c9ad6e,
+    0 0 0 7px #523c1b,
+    0 18px 50px rgba(0, 0, 0, 0.6);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.mv-sheet::backdrop { background: rgba(10, 6, 3, 0.62); }
+.mv-sheet h2 {
+  margin: 0 0 6px;
+  font: 700 1.25rem/1.2 var(--mv-serif);
+  color: var(--mv-ink);
+}
+.mv-sheet input[type="search"],
+.mv-sheet select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(60, 40, 12, 0.5);
+  font: 400 1rem var(--mv-serif);
+  color: var(--mv-ink);
+  background: rgba(88, 60, 20, 0.12);
+  box-shadow: inset 2px 3px 4px rgba(52, 34, 10, 0.3);
+  color-scheme: light;
+}
+.mv-sheet input:focus-visible,
+.mv-sheet select:focus-visible { outline: 2px solid var(--mv-ink); outline-offset: 2px; }
+
+/* ---------- Campo de batalha: dicas, ajuda, tentar de novo, corrigir carta ---------- */
+.bf-tips {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  height: fit-content;
+  display: grid;
+  gap: 10px;
+}
+.bf-tips ol { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; }
+.bf-tips li::marker { font-weight: 700; color: #7b5e2f; }
+.bf-tips .mv-plate { justify-self: end; min-width: 140px; }
+
+#battlefield .hud-round {
+  position: absolute;
+  left: max(12px, env(safe-area-inset-left));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  font: 700 1.15rem/1 var(--mv-serif);
+  pointer-events: auto;
+}
+#bf-retry {
+  position: absolute;
+  left: 50%;
+  top: calc(max(10px, env(safe-area-inset-top)) + 64px);
+  translate: -50% 0;
+  pointer-events: auto;
+}
+/* Nome da criatura: tocar abre "Não é essa carta?" */
+.bf-labels .bf-label {
+  pointer-events: auto;
+  min-height: 30px;
+  padding: 4px 10px;
+  font: 600 0.8rem/1.2 system-ui, sans-serif;
+  cursor: pointer;
+}
+.bf-labels .bf-label::after { content: " ✎"; opacity: 0.7; }
+
+#card-picker { display: none; }
+#card-picker[open] { display: grid; gap: 10px; }
+.cp-read { margin: 0; font-size: 0.92rem; color: var(--mv-ink-soft); }
+.cp-results { list-style: none; margin: 0; padding: 0; max-height: 40dvh; overflow-y: auto; }
+.cp-results li + li { border-top: 1px solid rgba(70, 48, 16, 0.3); }
+.cp-results button {
+  display: grid;
+  width: 100%;
+  padding: 8px 4px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  text-align: left;
+  font: inherit;
+  color: var(--mv-ink);
+}
+.cp-results button:active { background: rgba(88, 60, 20, 0.14); }
+.cp-results small { font-size: 0.8rem; color: var(--mv-ink-soft); }
+.cp-empty { margin: 0; font-style: italic; color: var(--mv-ink-soft); }
+#card-picker .mv-plate { justify-self: end; }
+
+/* ---------- Biblioteca: detalhe da carta com a criatura em 3D ---------- */
+.card-detail { display: none; }
+.card-detail[open] { display: grid; gap: 10px; }
+.card-detail header { display: grid; gap: 1px; }
+.card-detail h2 { margin: 0; }
+.cd-alt, .cd-type { margin: 0; font-size: 0.86rem; color: var(--mv-ink-soft); }
+.cd-alt:empty { display: none; }
+.cd-type { font-style: italic; }
+.cd-stage {
+  position: relative;
+  height: min(42dvh, 300px);
+  border-radius: 4px;
+  overflow: hidden;
+  background: radial-gradient(80% 70% at 50% 35%, #5a4a3a 0%, #2b2018 70%, #19120d 100%);
+  box-shadow: inset 3px 4px 8px rgba(10, 6, 2, 0.65), 0 0 0 2px rgba(96, 72, 32, 0.6);
+}
+.cd-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.cd-loading {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  border-radius: 50%;
+  border: 4px solid #ffd23f40;
+  border-top-color: #ffd23f;
+  animation: bf-spin 0.8s linear infinite;
+}
+.cd-model { margin: 0; font-weight: 600; color: #6a4410; }
+.cd-model small { font-weight: 400; color: var(--mv-ink-soft); }
+.cd-model-row { display: grid; gap: 4px; font-size: 0.88rem; color: var(--mv-ink-soft); }
+.cd-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.cd-actions .mv-plate { flex: 1 1 auto; }
+
+/* ---------- Mesa: barra da leitura das cartas ---------- */
+.xr-scan-bar {
+  --p: 0;
+  display: block;
+  width: 100%;
+  height: 4px;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: #ffffff1a;
+  overflow: hidden;
+}
+.xr-check > span:first-of-type { flex: 1; }
+.xr-check { flex-wrap: wrap; }
+.xr-scan-bar { flex-basis: 100%; }
+.xr-scan-bar i {
+  display: block;
+  height: 100%;
+  width: calc(max(var(--p), 0.06) * 100%);
+  background: linear-gradient(90deg, #b8954f, #ffd98a);
+  transition: width 0.25s linear;
+}
+.xr-scan-bar.busy i { animation: mv-shimmer 1.2s ease-in-out infinite; }
+@keyframes mv-shimmer { 50% { opacity: 0.55; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mv-plate { transition: none; }
+  .xr-scan-bar.busy i { animation: none; }
+  .cd-loading { animation-duration: 2.4s; }
+}
+@media (hover: hover) and (pointer: fine) {
+  .mv-plate:hover { filter: brightness(1.09) saturate(1.05); }
+}
+
+/* ==========================================================================
+   Telas de câmera no mesmo ouro do menu: painel de bronze escuro com friso
+   dourado, botões em placa de bronze, selos de status com borda de ouro.
+   Fica translúcido o bastante para não esconder a mesa.
+   ========================================================================== */
+#battlefield .status,
+#xr-status {
+  font-family: var(--mv-serif);
+  background: var(--mv-glass);
+  border: 1px solid var(--mv-trim);
+  color: #f3e6c4;
+  box-shadow: inset 0 1px 0 rgba(255, 236, 186, 0.18), 0 3px 12px #0008;
+}
+.xr-panel {
+  font-family: var(--mv-serif);
+  color: #f3e6c4;
+  background: var(--mv-glass);
+  border: 1px solid var(--mv-trim);
+  border-radius: 12px;
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 236, 186, 0.22),
+    inset -1px -1px 0 rgba(0, 0, 0, 0.5),
+    0 0 0 3px rgba(60, 42, 16, 0.55),
+    0 8px 24px #000a;
+}
+/* Botões do painel e do HUD: placa de bronze (principal) ou contorno dourado (secundário) */
+#xr-overlay button,
+#battlefield .hud button {
+  font-family: var(--mv-serif);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+#xr-confirm,
+#xr-retry,
+#bf-retry {
+  color: var(--mv-ink);
+  text-shadow: 0 1px 0 rgba(255, 236, 190, 0.38);
+  background: linear-gradient(150deg, var(--mv-metal-hi) 0%, #b3955a 22%, var(--mv-metal) 60%, #7b5e2f 100%);
+  border: 0;
+  box-shadow: inset 1px 1px 0 rgba(255, 240, 200, 0.58), inset -1px -1px 0 rgba(30, 19, 6, 0.55), 0 2px 6px #0009;
+}
+#xr-overlay button.ghost,
+#battlefield .hud button.ghost:not(#bf-retry) {
+  color: #f3e6c4;
+  background: rgba(30, 22, 14, 0.82);
+  border: 1px solid rgba(184, 149, 79, 0.75);
+}
+#xr-overlay button:active,
+#battlefield .hud button:active { transform: translate(1px, 1px); }
+.xr-seats legend { color: #cdb98d; font-family: var(--mv-serif); }
+.xr-seats button { border-color: rgba(184, 149, 79, 0.6); }
+.xr-seats button[aria-pressed="true"] {
+  color: var(--mv-ink);
+  background: linear-gradient(150deg, var(--mv-metal-hi), var(--mv-metal));
+  border-color: var(--mv-metal-hi);
+}
+.xr-reference select { border-color: rgba(184, 149, 79, 0.6); background: #1f1710; font-family: var(--mv-serif); }
+.xr-check small { color: #cdb98d; }
+#xr-size, .xr-check input { accent-color: #c9a24e; }
+.xr-progress { border-color: rgba(184, 149, 79, 0.6); }
+.xr-progress i { background: linear-gradient(90deg, #b8954f, #ffd98a); }
+/* Nome da criatura no campo de batalha */
+.bf-labels .bf-label {
+  font-family: var(--mv-serif);
+  color: #ffe6a6;
+  background: var(--mv-glass);
+  border: 1px solid var(--mv-trim);
+  box-shadow: 0 2px 8px #0009;
+}
+#battlefield .hud-round { color: #ffe6a6; }

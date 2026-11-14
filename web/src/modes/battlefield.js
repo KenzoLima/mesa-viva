@@ -27,6 +27,7 @@ const FEET_AT = 0.5; // onde ficam os pés: 0 = topo da carta, 1 = base (no cent
 const DETECT_WIDTH = 640; // resolução usada para achar o contorno da carta
 const STRIKE = '#ff5a2a'; // cor do contorno no ataque (carta virada)
 const STRIKE_FLASH = 0.5; // segundos do flash do ataque
+const OCR_MAX_FAILURES = 6; // leituras seguidas com erro até o leitor desistir (~15 s de espera somada)
 
 function ocrLines(data) {
   if (data.lines?.length) return data.lines;
@@ -97,7 +98,13 @@ function creaturePose(q) {
   return new THREE.Quaternion().setFromRotationMatrix(BASIS.makeBasis(SIDE, UP, FWD));
 }
 
-export async function startBattlefield(view, { catalog, resolver, onStatus }) {
+/**
+ * Abre o campo de batalha e devolve a função que o fecha.
+ * signal (AbortSignal): sair antes de terminar de abrir (a câmera ou o OCR ainda carregando) desfaz
+ * tudo o que já foi aberto e rejeita com AbortError. Um erro no meio do caminho também desfaz tudo.
+ * onCardTap({ card, choose }): o jogador tocou no nome de uma criatura; choose(outraCarta) corrige.
+ */
+export async function startBattlefield(view, { catalog, resolver, onStatus, signal, onCardTap }) {
   const video = document.createElement('video');
   // iPhone: sem playsinline o vídeo abre no player nativo, e sem muted/autoplay ele não toca.
   for (const a of ['playsinline', 'muted', 'autoplay']) video.setAttribute(a, '');
@@ -110,17 +117,67 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
   outline.className = 'bf-outline';
   view.prepend(video, outline, labels);
 
+  // Tudo que leave() desfaz é declarado aqui, antes de qualquer espera: ela pode rodar a qualquer momento.
+  let running = true;
+  let stopped = false;
+  let stream = null;
+  let renderer = null;
+  let resize = null;
+  // Uma entrada por carta FÍSICA na mesa: dá para ter várias cópias da mesma carta ou token.
+  const onField = new Map(); // id -> { card, creature, label, tracker, lastSeen, ... }
+  const stopTracks = (s) => s?.getTracks().forEach((t) => t.stop());
+
+  function leave() {
+    if (stopped) return;
+    stopped = true;
+    running = false;
+    renderer?.setAnimationLoop(null);
+    if (resize) window.removeEventListener('resize', resize);
+    stopTracks(stream);
+    // Os leitores de OCR ficam vivos: voltar ao campo de batalha é instantâneo.
+    for (const e of onField.values()) e.spinner?.remove();
+    renderer?.dispose();
+    renderer?.domElement.remove();
+    video.remove();
+    labels.remove();
+    outline.remove();
+  }
+
+  // Espera p, mas desiste na hora se o usuário sair; com erro ou saída, desfaz o que já foi aberto.
+  const abortError = () => new DOMException('Saiu do campo de batalha antes de ele abrir', 'AbortError');
+  const aborted = new Promise((_, reject) => {
+    if (signal?.aborted) reject(abortError());
+    signal?.addEventListener('abort', () => reject(abortError()), { once: true });
+  });
+  aborted.catch(() => {}); // sem "unhandled rejection" quando ninguém está esperando
+  const guard = async (p) => {
+    try {
+      return await Promise.race([p, aborted]);
+    } catch (err) {
+      leave();
+      throw err;
+    }
+  };
+
   onStatus('Abrindo a câmera…');
-  const stream = await navigator.mediaDevices.getUserMedia({
+  const media = navigator.mediaDevices.getUserMedia({
     audio: false,
     video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
   });
+  // Saiu enquanto o navegador ainda abria a câmera: desliga assim que ela chegar.
+  media.then((s) => { if (stopped) stopTracks(s); }, () => {});
+  stream = await guard(media);
   video.srcObject = stream;
-  await video.play();
+  await guard(video.play());
   // O iPhone às vezes demora para informar o tamanho do vídeo.
-  for (let i = 0; i < 50 && !video.videoWidth; i++) await new Promise((r) => setTimeout(r, 100));
+  for (let i = 0; i < 50 && !video.videoWidth; i++) await guard(new Promise((r) => setTimeout(r, 100)));
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  } catch (err) {
+    leave(); // sem WebGL: não deixa a câmera ligada
+    throw err;
+  }
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.domElement.className = 'bf-canvas';
   view.insertBefore(renderer.domElement, labels);
@@ -129,7 +186,7 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
   // Câmera ortográfica em pixels da tela: (x, -y) = ponto da tela.
   const camera = new THREE.OrthographicCamera(0, 1, 0, -1, -2000, 2000);
   const octx = outline.getContext('2d');
-  const resize = () => {
+  resize = () => {
     const w = view.clientWidth;
     const h = view.clientHeight;
     renderer.setSize(w, h);
@@ -146,13 +203,13 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
 
   onStatus('Preparando o reconhecimento de cartas…');
   const matcher = new NameMatcher(catalog);
-  let running = true;
   // Leitores de OCR já aquecidos pelo menu; o segundo (outro modo de leitura) entra quando ficar pronto
   // e roda em paralelo, dobrando a frequência de leituras.
   // (Só começa a ler depois que tudo abaixo estiver montado.)
+  // Na primeira vez o OCR ainda está baixando (vários segundos): sair nessa hora fecha a câmera já.
   const extraReaders = [];
   let startReader = (r) => extraReaders.push(r);
-  const firstReader = await getOcrReaders((r) => startReader(r));
+  const firstReader = await guard(getOcrReaders((r) => startReader(r)));
 
   /** Converte pontos do vídeo para a tela (o vídeo usa object-fit: cover). */
   const toScreen = (pts) => {
@@ -182,10 +239,9 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
   };
   const sampler = new GraySampler();
 
-  // Uma entrada por carta FÍSICA na mesa: dá para ter várias cópias da mesma carta ou token.
-  const onField = new Map(); // id -> { card, creature, label, tracker, lastSeen, ... }
   if (import.meta.env.DEV) window.__battlefield = onField; // inspeção no navegador durante o desenvolvimento
   const misses = new Map(); // oracleId -> leituras seguidas em que o contorno não foi achado
+  const corrections = new Map(); // oracleId lido errado -> carta que o jogador escolheu (só nesta partida)
   let nextId = 1;
   let elapsed = 0;
 
@@ -211,6 +267,7 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
     const ocrTurned = document.createElement('canvas');
     // Leitores fora de fase: enquanto um lê o quadro em pé, o outro lê de ponta-cabeça.
     let pass = readerCount++;
+    let failures = 0; // leituras seguidas que deram erro
     while (running) {
       if (!video.videoWidth) {
         await new Promise((r) => setTimeout(r, 200));
@@ -245,9 +302,18 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
       try {
         ({ data } = await reader.worker.recognize(rot ? ocrTurned : ocrCanvas, {}, { blocks: true, text: true }));
       } catch (err) {
-        console.warn('OCR falhou neste quadro', err);
+        // Um quadro ruim passa; um leitor quebrado falharia sem parar, redesenhando o quadro em loop
+        // e esquentando o celular. Espera cada vez mais e, depois de várias falhas seguidas, desiste.
+        failures++;
+        console.warn(`OCR falhou neste quadro (${failures}ª seguida)`, err);
+        if (failures >= OCR_MAX_FAILURES) {
+          if (running) onStatus('O leitor de cartas parou de funcionar. Recarregue a página para tentar de novo.');
+          return;
+        }
+        await new Promise((r) => setTimeout(r, Math.min(5000, 300 * 2 ** failures)));
         continue;
       }
+      failures = 0;
       if (!running) break;
 
       if (import.meta.env.DEV) window.__bfOcr = { psm: reader.psm, rot, lines: ocrLines(data).map((l) => `${l.confidence | 0} ${l.text.trim()}`), misses };
@@ -260,6 +326,9 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
       }
       if (import.meta.env.DEV) window.__bfOcr.found = found.map((m) => `${m.anchor} ${m.card.name} (${m.text})`);
       for (const m of found) {
+        // O jogador já corrigiu essa leitura nesta partida: vale a carta que ele escolheu.
+        const fixed = corrections.get(m.card.oracleId);
+        if (fixed) m.card = fixed;
         // Caixa SÓ das palavras do nome (ou da linha de tipo do token), em pixels do grab GIRADO.
         const { x0, y0, x1, y1 } = m.bbox;
         const center = unturn({ x: (x0 + x1) / 2 / k, y: (y0 + y1) / 2 / k });
@@ -352,9 +421,16 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
       creature.position.set(p.x, -p.y, 0);
       creature.userData.spawn();
       scene.add(creature);
-      const label = document.createElement('div');
+      // O nome é um botão: tocar nele abre "Não é essa carta?" para corrigir uma leitura errada.
+      const label = document.createElement('button');
+      label.type = 'button';
       label.className = 'bf-label';
       label.textContent = `${card.displayName} · ${resolver.label(choice.modelId)}`;
+      label.setAttribute('aria-label', `${card.displayName}: tocar para corrigir a carta`);
+      label.addEventListener('click', () => {
+        const e = [...onField.values()].find((x) => x.label === label);
+        if (e) onCardTap?.({ card: e.card, choose: (other) => replaceCard(e, other) });
+      });
       // Círculo girando sobre a carta enquanto o modelo 3D da criatura baixa.
       const spinner = document.createElement('div');
       spinner.className = 'bf-loading';
@@ -370,6 +446,38 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
     entry.tracker = tracker;
     entry.lastSeen = elapsed;
     entry.recognizedAt = elapsed; // dispara o flash do contorno
+  }
+
+  /**
+   * O jogador corrigiu a carta (a leitura errou o nome): troca a criatura no mesmo lugar, sem morrer.
+   * O contorno e o rastreamento continuam; uma leitura errada de novo no mesmo lugar cai na carta já
+   * presa (sameSpot) e não cria outra criatura.
+   */
+  function replaceCard(e, card) {
+    if (!onField.has(e.id) || card.oracleId === e.card.oracleId) return;
+    corrections.set(e.card.oracleId, card);
+    corrections.delete(card.oracleId); // escolher de volta a carta lida desfaz a correção antiga
+    const choice = resolver.resolve(card);
+    const creature = makeCreature(choice, { height: 1, waitForModel: true });
+    creature.quaternion.copy(e.creature.quaternion);
+    creature.position.copy(e.creature.position);
+    creature.scale.copy(e.creature.scale);
+    creature.userData.spawn();
+    scene.remove(e.creature);
+    scene.add(creature);
+    e.creature = creature;
+    e.card = card;
+    e.label.textContent = `${card.displayName} · ${resolver.label(choice.modelId)}`;
+    e.label.setAttribute('aria-label', `${card.displayName}: tocar para corrigir a carta`);
+    if (!e.spinner) {
+      e.spinner = document.createElement('div');
+      e.spinner.className = 'bf-loading';
+      e.spinner.setAttribute('role', 'status');
+      labels.append(e.spinner);
+    }
+    e.spinner.setAttribute('aria-label', `Carregando ${card.displayName}`);
+    e.recognizedAt = elapsed;
+    refreshStatus();
   }
 
   /** Contorno amarelo da carta: brilha forte ao ser reconhecida e fica fixo enquanto a vê. */
@@ -478,17 +586,5 @@ export async function startBattlefield(view, { catalog, resolver, onStatus }) {
   startReader = (r) => { if (running) ocrLoop(r); };
   [firstReader, ...extraReaders].forEach(startReader);
 
-  return () => {
-    running = false;
-    renderer.setAnimationLoop(null);
-    window.removeEventListener('resize', resize);
-    stream.getTracks().forEach((t) => t.stop());
-    // Os leitores de OCR ficam vivos: voltar ao campo de batalha é instantâneo.
-    for (const e of onField.values()) e.spinner?.remove();
-    renderer.dispose();
-    video.remove();
-    labels.remove();
-    outline.remove();
-    renderer.domElement.remove();
-  };
+  return leave;
 }

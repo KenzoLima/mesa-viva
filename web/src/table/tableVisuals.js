@@ -51,14 +51,122 @@ function labelMesh(text, width) {
   return new THREE.Mesh(new THREE.PlaneGeometry(width, width / 4).rotateX(-Math.PI / 2), mat);
 }
 
+/**
+ * Quanto da mesa fica à vista depois de confirmar (fração da opacidade de quando se ajusta): a borda,
+ * a linha do meio e as zonas (grimório, cemitério…) ficam como um playmat bem fraco. O resto (grade,
+ * seta, VOCÊ/OPONENTE, alça) só serve para ajustar e some.
+ */
+export const REST_OPACITY = 0.35;
+
+/** Texto deitado na mesa, encolhido para caber em `width` (metros). */
+function zoneLabel(text, width, opacity) {
+  const c = document.createElement('canvas');
+  c.width = 512;
+  c.height = 128;
+  const ctx = c.getContext('2d');
+  let size = 78;
+  ctx.font = `600 ${size}px Georgia, "Times New Roman", serif`;
+  const fit = 488 / ctx.measureText(text).width;
+  if (fit < 1) size = Math.floor(size * fit);
+  ctx.font = `600 ${size}px Georgia, "Times New Roman", serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,0.85)';
+  ctx.shadowBlur = 10;
+  ctx.fillStyle = GOLD_TEXT;
+  ctx.fillText(text, 256, 66);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity, depthWrite: false });
+  mat.userData.base = opacity;
+  mat.userData.permanent = true;
+  return new THREE.Mesh(new THREE.PlaneGeometry(width, width / 4).rotateX(-Math.PI / 2), mat);
+}
+
+/**
+ * Zonas do Magic em cada metade da mesa, como num playmat: na coluna da direita de cada jogador,
+ * do lado dele para o meio, GRIMÓRIO, CEMITÉRIO e EXÍLIO (do tamanho de uma carta com folga);
+ * à esquerda, TERRENOS junto à borda e o CAMPO DE BATALHA até a linha do meio. O lado do oponente
+ * é o mesmo girado 180°, com os textos virados para ele. Mesa pequena: as zonas encolhem juntas.
+ * Puro (sem DOM): [{ side, name, text, x0, y0, x1, y1, turn, labelW }] em coordenadas da mesa.
+ */
+export function zoneLayout(width, depth) {
+  const w = width / 2;
+  const d = depth / 2;
+  const CARD = { w: 0.075, h: 0.1 }; // carta (63 × 88 mm) com folga
+  const GAP = 0.012;
+  const MARGIN = 0.015;
+  // Encolhe tudo se a metade da mesa não comporta 3 cartas em pé ou a coluna ficaria larga demais.
+  const s = Math.min(1, (d - MARGIN * 2) / (CARD.h * 3 + GAP * 2), (width * 0.3) / CARD.w);
+  const zw = CARD.w * s;
+  const zh = CARD.h * s;
+  const gap = GAP * s;
+  const m = MARGIN * s;
+  const out = [];
+  // (u, v) do ponto de vista do jogador: u para a direita dele, v da borda dele para o meio.
+  const sides = [
+    { side: 'you', toTable: (u, v) => ({ x: u, y: -d + v }), turn: 0 },
+    { side: 'opponent', toTable: (u, v) => ({ x: -u, y: d - v }), turn: Math.PI },
+  ];
+  for (const { side, toTable, turn } of sides) {
+    const zone = (name, text, u0, v0, u1, v1, labelW) => {
+      const a = toTable(u0, v0);
+      const b = toTable(u1, v1);
+      const x0 = Math.min(a.x, b.x);
+      const x1 = Math.max(a.x, b.x);
+      out.push({ side, name, text, x0, x1, y0: Math.min(a.y, b.y), y1: Math.max(a.y, b.y), turn, labelW: labelW ?? (x1 - x0) * 0.92 });
+    };
+    const colU1 = w - m;
+    const colU0 = colU1 - zw;
+    zone('library', 'GRIMÓRIO', colU0, m, colU1, m + zh);
+    zone('graveyard', 'CEMITÉRIO', colU0, m + zh + gap, colU1, m + zh * 2 + gap);
+    zone('exile', 'EXÍLIO', colU0, m + (zh + gap) * 2, colU1, m + zh * 3 + gap * 2);
+    const leftU0 = -w + m;
+    const leftU1 = colU0 - gap;
+    const landsH = Math.min(zh, (d - m * 2) * 0.32);
+    zone('lands', 'TERRENOS', leftU0, m, leftU1, m + landsH, Math.min((leftU1 - leftU0) * 0.5, 0.16));
+    zone('battlefield', 'CAMPO DE BATALHA', leftU0, m + landsH + gap, leftU1, d - m, Math.min((leftU1 - leftU0) * 0.7, 0.24));
+  }
+  return out;
+}
+
+/** Desenho das zonas (zoneLayout): contorno, um véu bem leve e o nome deitado na mesa. */
+export function makeZones(width, depth) {
+  const g = new THREE.Group();
+  g.name = 'zones';
+  const lineMat = new THREE.LineBasicMaterial({ color: GOLD, transparent: true, opacity: 0.75, depthWrite: false });
+  lineMat.userData.base = 0.75;
+  lineMat.userData.permanent = true;
+  const fillMat = new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide });
+  fillMat.userData.base = 0.1;
+  fillMat.userData.permanent = true;
+  for (const z of zoneLayout(width, depth)) {
+    const c = [[z.x0, z.y0], [z.x1, z.y0], [z.x1, z.y1], [z.x0, z.y1]].map(([x, y]) => local({ x, y }, LIFT * 1.5));
+    const pts = c.flatMap((p, i) => [p, c[(i + 1) % 4]]).flatMap((p) => [p.x, p.y, p.z]);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    g.add(new THREE.LineSegments(geo, lineMat));
+    const center = { x: (z.x0 + z.x1) / 2, y: (z.y0 + z.y1) / 2 };
+    const fill = new THREE.Mesh(new THREE.PlaneGeometry(z.x1 - z.x0, z.y1 - z.y0).rotateX(-Math.PI / 2), fillMat);
+    fill.position.copy(local(center, LIFT));
+    g.add(fill);
+    const label = zoneLabel(z.text, z.labelW, 0.95);
+    label.position.copy(local(center, LIFT * 2));
+    label.rotation.y = z.turn; // o texto fica de pé para quem senta daquele lado
+    g.add(label);
+  }
+  return g;
+}
+
 /** Área de jogo (TableAreaVisualizer): borda, grade de 10 cm, linha do meio, seta, VOCÊ/OPONENTE e alça. */
 export function makeArea(width, depth) {
   const g = new THREE.Group();
   const w = width / 2;
   const d = depth / 2;
-  const lineMat = (opacity) => {
+  const lineMat = (opacity, permanent = false) => {
     const m = new THREE.LineBasicMaterial({ color: GOLD, transparent: true, opacity, depthWrite: false });
     m.userData.base = opacity;
+    m.userData.permanent = permanent;
     return m;
   };
   const segs = (pairs, mat) => {
@@ -68,16 +176,20 @@ export function makeArea(width, depth) {
     return new THREE.LineSegments(geo, mat);
   };
   const corners = [[-w, -d], [w, -d], [w, d], [-w, d]].map(([x, y]) => local({ x, y }, LIFT));
-  g.add(segs(corners.map((c, i) => [c, corners[(i + 1) % 4]]), lineMat(1)));
+  g.add(segs(corners.map((c, i) => [c, corners[(i + 1) % 4]]), lineMat(1, true)));
   const inner = [];
   for (let x = -w + 0.1; x < w - 0.01; x += 0.1) inner.push([local({ x, y: -d }, LIFT), local({ x, y: d }, LIFT)]);
   for (let y = -d + 0.1; y < d - 0.01; y += 0.1) inner.push([local({ x: -w, y }, LIFT), local({ x: w, y }, LIFT)]);
-  g.add(segs(inner, lineMat(0.22)));
-  g.add(segs([[local({ x: -w, y: 0 }, LIFT * 2), local({ x: w, y: 0 }, LIFT * 2)]], lineMat(1)));
+  g.add(segs(inner, lineMat(0.16)));
+  g.add(segs([[local({ x: -w, y: 0 }, LIFT * 2), local({ x: w, y: 0 }, LIFT * 2)]], lineMat(1, true)));
+
+  // Zonas do jogo (grimório, cemitério, exílio, terrenos, campo de batalha) dos dois lados.
+  g.add(makeZones(width, depth));
 
   // Véu translúcido para a área "existir" mesmo onde a grade é fina.
   const veilMat = new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.07, depthWrite: false, side: THREE.DoubleSide });
   veilMat.userData.base = 0.07;
+  veilMat.userData.permanent = true;
   const veil = new THREE.Mesh(new THREE.PlaneGeometry(width, depth).rotateX(-Math.PI / 2), veilMat);
   veil.position.y = LIFT * 0.5;
   g.add(veil);
@@ -99,11 +211,12 @@ export function makeArea(width, depth) {
   arrow.position.copy(local({ x: 0, y: -d * 0.22 }, LIFT * 2));
   g.add(arrow);
 
-  const labelW = Math.min(0.24, width * 0.42);
+  // Fora da borda (dentro ficam os nomes das zonas): VOCÊ junto à sua borda, OPONENTE além da alça.
+  const labelW = Math.min(0.2, width * 0.36);
   const me = labelMesh('VOCÊ', labelW);
-  me.position.copy(local({ x: 0, y: -d * 0.62 }, LIFT * 2));
+  me.position.copy(local({ x: 0, y: -d - labelW / 8 - 0.008 }, LIFT * 2));
   const opp = labelMesh('OPONENTE', labelW);
-  opp.position.copy(local({ x: 0, y: d * 0.55 }, LIFT * 2));
+  opp.position.copy(local({ x: 0, y: d + HANDLE_OFFSET + 0.036 + labelW / 8 + 0.006 }, LIFT * 2));
   g.add(me, opp);
 
   // Alça de rotação além da borda do oponente.
@@ -118,12 +231,19 @@ export function makeArea(width, depth) {
   return g;
 }
 
-export function setAreaOpacity(area, k) {
+/**
+ * Opacidade da área: k = 1 ajustando, 0 apagada. `rest` segura as partes permanentes (borda, meio,
+ * zonas) em pelo menos essa fração, para a mesa continuar desenhada depois de confirmada.
+ */
+export function setAreaOpacity(area, k, rest = 0) {
   area.traverse((o) => {
     const m = o.material;
-    if (m?.userData.base !== undefined) m.opacity = m.userData.base * k;
+    if (m?.userData.base === undefined) return;
+    const f = m.userData.permanent ? Math.max(k, rest) : k;
+    m.opacity = m.userData.base * f;
+    o.visible = f > 0.001;
   });
-  area.visible = k > 0.001;
+  area.visible = k > 0.001 || rest > 0.001;
 }
 
 export function disposeTree(obj) {
@@ -176,12 +296,15 @@ export function updateCreatures(creatures, dt) {
   }
 }
 
-/** Animação de opacidade da área ao confirmar: pisca e some. Retorna se acabou. */
+/**
+ * Animação da área ao confirmar: pisca, e o que só serve para ajustar some; a borda e as zonas
+ * baixam até REST_OPACITY e ficam. Retorna se acabou.
+ */
 export function animateAreaFade(area, fade, dt) {
   fade.t += dt;
   const blink = fade.t < 0.6 ? 0.55 + 0.45 * Math.cos((fade.t * Math.PI * 2) / 0.2) : 1;
   const out = fade.t < 0.6 ? 1 : Math.max(0, 1 - (fade.t - 0.6) / 0.6);
-  setAreaOpacity(area, blink * out);
+  setAreaOpacity(area, blink * out, fade.t < 0.6 ? 0 : REST_OPACITY);
   return fade.t >= 1.2;
 }
 

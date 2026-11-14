@@ -19,6 +19,9 @@
     "bestiary/orc_berserker": "Orc Berserker", "bestiary/skeleton_warrior": "Esqueleto Guerreiro",
     "bestiary/spider_giant": "Aranha Gigante", "bestiary/wolf_shadow": "Lobo das Sombras",
     "bestiary/zombie_shambler": "Zumbi Errante",
+    "bestiary/human_wizard": "Mago Humano", "bestiary/human_cleric": "Clériga Humana",
+    "bestiary/human_rogue": "Ladino Humano", "bestiary/human_barbarian": "Bárbaro Humano",
+    "bestiary/goblin_shaman": "Goblin Xamã", "bestiary/elf_druid": "Elfa Druida",
     "terrain_plains": "Bioma: planície", "terrain_water": "Bioma: água", "terrain_swamp": "Bioma: pântano",
     "terrain_mountain": "Bioma: montanha", "terrain_forest": "Bioma: floresta", "terrain_wasteland": "Bioma: ermo",
     "hero_planeswalker": "Herói planeswalker", "prop_battle": "Objeto: batalha", "prop_artifact": "Objeto: artefato",
@@ -60,7 +63,12 @@
   },
 
   "byRaceClass": {
-    "Human": { "Knight": "bestiary/human_knight" }
+    "Human": {
+      "Knight": "bestiary/human_knight", "Wizard": "bestiary/human_wizard", "Cleric": "bestiary/human_cleric",
+      "Rogue": "bestiary/human_rogue", "Barbarian": "bestiary/human_barbarian"
+    },
+    "Goblin": { "Shaman": "bestiary/goblin_shaman" },
+    "Elf": { "Druid": "bestiary/elf_druid" }
   },
 
   "classSubtypes": [

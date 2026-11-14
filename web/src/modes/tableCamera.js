@@ -16,6 +16,7 @@ import {
   HANDLE_OFFSET, v3, frameMatrix, makeArea, setAreaOpacity, disposeTree, makeTableRig, fitShadowCatcher,
   animateAreaFade, RecognizedCreatures,
 } from '../table/tableVisuals.js';
+import { scanReporter } from '../table/scanUi.js';
 import { CardWatch } from '../table/cardWatch.js';
 import { TableCards, planScans, scanOrder, coverage, BlockMemory } from '../table/tableCards.js';
 import { TableCardScanner, blockSignature, signatureChange } from '../table/cardScanner.js';
@@ -65,18 +66,29 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, onEnd 
   view.prepend(video, marks);
 
   ui.status.textContent = 'Abrindo a câmera…';
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: false,
-    // 4K quando der: na mesa as cartas do lado de lá aparecem pequenas, e o nome só é lido com resolução.
-    video: { facingMode: { ideal: 'environment' }, width: { ideal: 3840 }, height: { ideal: 2160 } },
-  });
-  video.srcObject = stream;
-  await video.play();
-  for (let i = 0; i < 50 && !video.videoWidth; i++) await new Promise((r) => setTimeout(r, 100));
+  let stream = null;
+  let renderer;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      // 4K quando der: na mesa as cartas do lado de lá aparecem pequenas, e o nome só é lido com resolução.
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 3840 }, height: { ideal: 2160 } },
+    });
+    video.srcObject = stream;
+    await video.play();
+    for (let i = 0; i < 50 && !video.videoWidth; i++) await new Promise((r) => setTimeout(r, 100));
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  } catch (err) {
+    // Falhou depois de abrir a câmera (vídeo não tocou, sem WebGL): não deixa a câmera ligada nem o
+    // vídeo na página, senão eles se acumulam a cada tentativa.
+    stream?.getTracks().forEach((t) => t.stop());
+    video.remove();
+    marks.remove();
+    throw err;
+  }
   const VW = video.videoWidth;
   const VH = video.videoHeight;
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.shadowMap.enabled = true;
@@ -364,8 +376,9 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, onEnd 
       go('corners');
       return;
     }
-    setFrame(frame);
+    // Primeiro o estado: setFrame só reacende a área (alça, grade, seta) fora do estado confirmado.
     go('adjusting');
+    setFrame(frame);
   }, { signal });
   ui.recognize.addEventListener('change', () => {
     if (!ui.recognize.checked) forgetCards();
@@ -503,6 +516,7 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, onEnd 
   let scanner = null;
   let scans = 0;
 
+  const report = scanReporter(ui);
   const watch = new CardWatch(cards, recognized);
   let watchTimer = 0;
 
@@ -511,7 +525,7 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, onEnd 
     cards.clear();
     recognized.clear();
     watch.clear();
-    ui.scanInfo.textContent = '';
+    report.message('');
   }
 
   /** Ponto da mesa → pixel do VÍDEO (ou null se atrás da câmera). */
@@ -559,7 +573,7 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, onEnd 
       }
       try {
         if (!scanner) {
-          ui.scanInfo.textContent = 'preparando a leitura…';
+          report.message('preparando a leitura… (só na primeira vez)');
           scanner = await new TableCardScanner(catalog).ready();
         }
         const calAtScan = cal;
@@ -574,7 +588,7 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, onEnd 
             : '';
         }
         if (!order.length) {
-          ui.scanInfo.textContent = 'a área de jogo não aparece na câmera';
+          report.message('a área de jogo não aparece na câmera');
           await new Promise((r) => setTimeout(r, 1000));
           continue;
         }
@@ -589,6 +603,7 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, onEnd 
           continue; // nada mudou nesse bloco desde a última leitura
         }
         const known = [...cards.entries.values()].map((e) => ({ center: e.pos, yaw: e.yaw }));
+        report.reading(((jobIndex - 1) % order.length) + 1, order.length, cards.entries.size);
         const detections = await scanner.scan(src, job, tableToVideo, known);
         memory.remember(job, sig, clock, (scanner.last?.unresolved ?? 0) > 0);
         grayCache = null; // o OCR demorou: a próxima leitura usa um quadro novo
@@ -599,11 +614,10 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, onEnd 
         // Só conta como sumida a carta que ESTE bloco teria lido.
         const couldRead = (pos, e) => coverage(job, pos, e, tableVisible);
         recognized.apply(cards.update(detections, clock, couldRead));
-        const n = cards.entries.size;
-        ui.scanInfo.textContent = (n ? `${n} carta${n > 1 ? 's' : ''} na mesa` : 'nenhuma carta lida ainda') + smallHint;
+        report.done(cards.entries.size, smallHint);
       } catch (err) {
         console.warn('Leitura das cartas falhou', err);
-        ui.scanInfo.textContent = 'a leitura falhou; tentando de novo';
+        report.message('a leitura falhou; tentando de novo');
         await new Promise((r) => setTimeout(r, 1500));
       }
     }
