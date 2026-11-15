@@ -7,7 +7,7 @@
 
 import * as THREE from 'three';
 import { XREstimatedLight } from 'three/addons/webxr/XREstimatedLight.js';
-import { addLights } from '../creatures.js';
+import { addLights, preloadModels, setCreatureRenderer } from '../creatures.js';
 import {
   TableFrame, CalibrationStateMachine, State, Seat, StableFlag, ScanProgress, polygonAreaXZ,
 } from '../table/tableFrame.js';
@@ -222,6 +222,9 @@ export async function startTableMode({ ui, catalog, resolver, onEnd }) {
 
   // Tudo que pertence à mesa fica neste grupo, que segue a âncora depois de confirmar.
   const { tableRoot, shadowCatcher } = makeTableRig(scene);
+  // Os modelos mais comuns já vão baixando e compilando enquanto a mesa é calibrada.
+  setCreatureRenderer(renderer, camera, scene);
+  preloadModels(resolver.commonModels());
 
   renderer.xr.setReferenceSpaceType('local');
   await renderer.xr.setSession(session);
@@ -617,7 +620,7 @@ export async function startTableMode({ ui, catalog, resolver, onEnd }) {
     // Vigia das cartas já reconhecidas (virar para atacar na hora): foto pequena, 4 vezes por segundo.
     watchTimer += dt;
     if (camImage && view && frame && sm.state === State.Confirmed && ui.recognize.checked && !lost.value
-      && cards.entries.size && watchTimer >= WATCH_EVERY) {
+      && (cards.entries.size || cards.recent.size) && watchTimer >= WATCH_EVERY) {
       watchTimer = 0;
       try {
         const small = camImage.grab(view, WATCH_SIDE);
@@ -652,6 +655,7 @@ export async function startTableMode({ ui, catalog, resolver, onEnd }) {
     hitSource.cancel();
     touchHitSource?.cancel();
     renderer.setAnimationLoop(null);
+    setCreatureRenderer(null);
     planeGrid.dispose();
     if (area) disposeTree(area); // as criaturas não: a geometria dos modelos é compartilhada pelo cache
     renderer.dispose();

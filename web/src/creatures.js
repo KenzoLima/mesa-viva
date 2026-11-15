@@ -5,6 +5,7 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { strongestAttack, idleClip, deathClip } from './animations.js';
 
@@ -16,17 +17,77 @@ const BIOME = {
 const WINGED = new Set(['winged', 'dragon', 'angel', 'bat', 'bird', 'fairy', 'demon']);
 const HORNED = new Set(['dragon', 'demon', 'goblin', 'orc']);
 
-const loader = new GLTFLoader();
+// Os .glb vêm comprimidos com meshopt (scripts/compress-models.mjs): o decodificador vem junto.
+const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 const glbCache = new Map();
 
+/** O arquivo começa com o "magic" do GLB binário ("glTF")? (Sem modelo, o servidor devolve o index.html.) */
+export function isGlb(buffer) {
+  if (!buffer || buffer.byteLength < 12) return false;
+  const b = new Uint8Array(buffer, 0, 4);
+  return b[0] === 0x67 && b[1] === 0x6c && b[2] === 0x54 && b[3] === 0x46;
+}
+
+// Renderizador da cena atual (setCreatureRenderer): os shaders do modelo são compilados antes de ele
+// aparecer, para a criatura não travar a tela no primeiro quadro em que surge.
+let target = null;
+
+/** Registra o renderizador, a câmera e a cena do modo atual (ou null ao sair). */
+export function setCreatureRenderer(renderer, camera, scene) {
+  target = renderer ? { renderer, camera, scene } : null;
+}
+
+/** Compila os shaders do modelo no renderizador atual (uma vez por modelo e renderizador). */
+async function warm(gltf) {
+  const t = target;
+  if (!gltf || !t?.renderer.compileAsync || gltf.userData.warmedFor === t.renderer) return;
+  gltf.userData.warmedFor = t.renderer;
+  try {
+    await Promise.race([
+      t.renderer.compileAsync(gltf.scene, t.camera, t.scene),
+      new Promise((r) => setTimeout(r, 3000)), // não segura a criatura se a compilação empacar
+    ]);
+  } catch {
+    // Sem compilar antes, o modelo compila no primeiro quadro: só um engasgo.
+  }
+}
+
+/** Um GET por modelo: confere que é GLB e decodifica. null se não houver modelo para esse id. */
 function loadGlb(modelId) {
   if (!glbCache.has(modelId)) {
     const url = `${import.meta.env?.BASE_URL ?? './'}models/${modelId}.glb`;
-    glbCache.set(modelId, fetch(url, { method: 'HEAD' })
-      .then((r) => (r.ok && !(r.headers.get('content-type') ?? '').includes('html') ? loader.loadAsync(url) : null))
+    const base = url.slice(0, url.lastIndexOf('/') + 1);
+    glbCache.set(modelId, fetch(url)
+      .then((r) => (r.ok ? r.arrayBuffer() : null))
+      .then((buf) => (isGlb(buf) ? loader.parseAsync(buf, base) : null))
       .catch(() => null));
   }
   return glbCache.get(modelId);
+}
+
+/** Modelo baixado, decodificado e com os shaders prontos. */
+async function readyGlb(modelId) {
+  const gltf = await loadGlb(modelId);
+  await warm(gltf);
+  return gltf;
+}
+
+const whenIdle = (fn) => (typeof requestIdleCallback === 'function' ? requestIdleCallback(fn, { timeout: 2000 }) : setTimeout(fn, 50));
+
+/**
+ * Baixa e prepara os modelos em segundo plano (2 de cada vez, quando o navegador está folgado), para
+ * a criatura surgir na hora quando a carta aparece. Retorna uma promessa que resolve no fim.
+ */
+export function preloadModels(ids, parallel = 2) {
+  const queue = [...new Set(ids)].filter(Boolean);
+  const worker = async () => {
+    while (queue.length) {
+      const id = queue.shift();
+      await new Promise((r) => whenIdle(r));
+      await readyGlb(id);
+    }
+  };
+  return Promise.all(Array.from({ length: Math.min(parallel, queue.length) }, worker));
 }
 
 const mat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.1, ...extra });
@@ -162,7 +223,7 @@ export function makeCreature(choice, { height = 0.6, waitForModel = false } = {}
   root.userData.loading = true;
   if (waitForModel) pivot.visible = false;
 
-  loadGlb(choice.modelId).then((gltf) => {
+  readyGlb(choice.modelId).then((gltf) => {
     root.userData.loading = false;
     pivot.visible = true;
     if (!gltf) return;

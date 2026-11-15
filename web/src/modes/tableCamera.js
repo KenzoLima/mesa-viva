@@ -6,7 +6,7 @@
 // Se a câmera se mexer, a imagem inteira muda e o app pede para recalibrar.
 
 import * as THREE from 'three';
-import { addLights } from '../creatures.js';
+import { addLights, preloadModels, setCreatureRenderer } from '../creatures.js';
 import { TableFrame, Seat } from '../table/tableFrame.js';
 import {
   REFERENCES, calibrateFromRect, refineCorners, coverIntrinsics, coverTransform, videoToView, viewToVideo,
@@ -101,6 +101,9 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, onEnd 
   const camera = new THREE.PerspectiveCamera();
   camera.matrixAutoUpdate = false;
   const { tableRoot, shadowCatcher } = makeTableRig(scene);
+  // Os modelos mais comuns já vão baixando e compilando enquanto a mesa é calibrada.
+  setCreatureRenderer(renderer, camera, scene);
+  preloadModels(resolver.commonModels());
 
   const listeners = new AbortController();
   const { signal } = listeners;
@@ -640,7 +643,7 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, onEnd 
       }
     }
     // Vigia das cartas já reconhecidas: virar para atacar na hora, sem esperar o OCR.
-    if (state === 'confirmed' && ui.recognize.checked && !moved && cards.entries.size) {
+    if (state === 'confirmed' && ui.recognize.checked && !moved && (cards.entries.size || cards.recent.size)) {
       watchTimer += dt;
       if (watchTimer >= WATCH_EVERY) {
         watchTimer = 0;
@@ -668,6 +671,7 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, onEnd 
     listeners.abort();
     ui.recognizeRow.hidden = true;
     renderer.setAnimationLoop(null);
+    setCreatureRenderer(null);
     for (const t of stream.getTracks()) t.stop();
     if (area) disposeTree(area); // as criaturas não: a geometria dos modelos é compartilhada pelo cache
     renderer.dispose();

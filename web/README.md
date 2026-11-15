@@ -86,7 +86,8 @@ Depois de confirmar a mesa, com **Reconhecer as cartas na mesa** ligado, o app l
 
 - **carta nova** → a criatura surge; **carta arrastada** → a criatura desliza junto (abaixo de 1,5 cm ou 8° nada muda);
 - **carta virada ~90°, para qualquer lado** → a criatura se volta para o oponente e **ataca na hora** (em menos de 1 s, sem esperar o OCR; o golpe do modelo, ou um bote quando o modelo não tem); desvirada, volta;
-- **carta tirada da mesa** → a criatura sai (só depois de não ser vista nem em pé nem virada; carta coberta ou fora da câmera não conta);
+- **carta tirada ou coberta por mais de 3 s** (com o lugar à vista) → a criatura toca a animação de morte e sai; carta fora da câmera não conta;
+- **carta posta de volta no mesmo lugar em até 60 s** → a criatura renasce ali, no mesmo giro (sem duplicar, seja o vigia ou o OCR quem a veja voltar). Outra carta no lugar, ou passado 1 minuto, e a carta é esquecida;
 - duas cópias da mesma carta em lugares diferentes viram duas criaturas; um nome mal lido em cima de uma carta conhecida é ignorado (só troca se repetir 3 vezes).
 
 Como funciona (`src/table/cardScanner.js`, `tableCards.js`):
@@ -102,7 +103,7 @@ Como funciona (`src/table/cardScanner.js`, `tableCards.js`):
 
 Medido com uma captura real (Aurelia, the Warleader e Lathliss, Dragon Queen, ~3 px/mm na carta, que é pouco): as duas são reconhecidas pelo app em ~20–40 s, com os falsos positivos ("Cremate", "Dragons", "Dead // Gone") descartados. Numa mesa sintética de 84 × 98 cm em 4K, quatro cartas espalhadas (duas do oponente) foram reconhecidas em ~33 s. A 1ª passada de um bloco movimentado leva vários segundos; cartas novas aparecem mais rápido quando o resto da mesa está parado.
 
-**Virar para atacar, na hora** (`src/table/turnWatch.js`, `cardWatch.js`): o OCR é lento demais para isso, então um vigia separado olha as cartas já reconhecidas 4 vezes por segundo. Para cada carta ele recorta da imagem um quadrado de 14 cm da vista de cima em volta dela (0,6 px/mm, sempre na orientação em que a carta entrou) e compara com o recorte de quando ela entrou, girado 0°, +90°, 180° e −90° (correlação normalizada, procurando um deslocamento de até 3 cm: a carta escorrega ao ser virada, e a posição lida pode errar um pouco). A arte e o texto da carta são únicos, então o giro que casa melhor diz para que lado ela foi virada. Precisa de 2 leituras seguidas (~0,5 s) para valer; mão na frente não casa nada e não muda nada. O mesmo vigia percebe a carta tirada da mesa (nada casa por 4 s; a criatura sai ~10 s depois) e evita que uma carta ainda lá seja dada como sumida só porque o OCR não a leu.
+**Virar para atacar, na hora** (`src/table/turnWatch.js`, `cardWatch.js`): o OCR é lento demais para isso, então um vigia separado olha as cartas já reconhecidas 4 vezes por segundo. Para cada carta ele recorta da imagem um quadrado de 14 cm da vista de cima em volta dela (0,6 px/mm, sempre na orientação em que a carta entrou) e compara com o recorte de quando ela entrou, girado 0°, +90°, 180° e −90° (correlação normalizada, procurando um deslocamento de até 3 cm: a carta escorrega ao ser virada, e a posição lida pode errar um pouco). A arte e o texto da carta são únicos, então o giro que casa melhor diz para que lado ela foi virada. Precisa de 2 leituras seguidas (~0,5 s) para valer; mão na frente não casa nada e não muda nada. O mesmo vigia percebe a carta tirada ou coberta: nada casa por 1 s e ele avisa desde quando nada casa (`missingSince`), e o prazo de 3 s (`LOST_AFTER` em `tableCards.js`) conta desse instante, não de quando o vigia se convenceu. Assim a criatura sai ~3 s depois de a carta sumir (antes eram ~10 s, somando 4 s do vigia e 6 s do prazo). Ele também evita que uma carta ainda lá seja dada como sumida só porque o OCR não a leu, e continua olhando o lugar das cartas que saíram há menos de 60 s (`TableCards.recent`): se o recorte voltar a casar, a criatura renasce.
 
 **Resolução é o que manda.** O nome tem ~3 mm de altura; o OCR precisa dele com uns 10 px na imagem da câmera. Medido com uma câmera a ~60 cm da mesa e 45° para baixo:
 
@@ -130,7 +131,9 @@ Antes de publicar, rode `npm test` e `npm run build` para conferir que está tud
 3. Salve `targets.mind` e `targets.json` em `web/public/targets/`.
 4. Recarregue o app e aponte a câmera para a carta (na tela ou impressa).
 
-Modelos 3D: coloque `<id>.glb` em `web/public/models/` (veja o `LEIA-ME.md` de lá). Sem eles aparece uma criatura procedural.
+Modelos 3D: coloque `<id>.glb` em `web/public/models/` (veja o `LEIA-ME.md` de lá) e rode `npm run compress-models`. Sem eles aparece uma criatura procedural.
+
+**Carregamento dos modelos** (`src/creatures.js`): um único GET por modelo (o app confere o começo `glTF` do arquivo; sem modelo, o servidor devolve a página e vale o boneco procedural), decodificado com o `MeshoptDecoder` do three. Nos modos Mesa os modelos mais comuns (`ModelResolver.commonModels()`) são baixados em segundo plano, 2 de cada vez, enquanto a mesa é calibrada (`preloadModels`), e os shaders de cada modelo são compilados antes de ele aparecer (`setCreatureRenderer` + `renderer.compileAsync`): a criatura surge sem engasgar a tela.
 
 ## De onde vêm os dados (fonte única)
 

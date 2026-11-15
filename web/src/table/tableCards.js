@@ -6,13 +6,18 @@
 //   spawn  carta nova → invoca a criatura;
 //   move   a carta andou mais que a zona morta (1,5 cm ou 8°) → a criatura acompanha;
 //   tap / untap  a carta foi virada ~90° em relação a como entrou (atacar) ou desvirada;
-//   remove a carta sumiu por `lostAfter` segundos com o lugar dela à vista → a criatura sai.
+//   remove a carta sumiu por `lostAfter` segundos com o lugar dela à vista → a criatura morre e sai;
+//   spawn (revived) a carta que saiu voltou ao mesmo lugar em até `reviveFor` s → a criatura renasce.
 //
 // Coordenadas da mesa: x = direita, y = frente (do jogador para o oponente), metros.
 // yaw da carta: para onde aponta o TOPO dela, em graus no sentido horário visto de cima
 // (0 = para o oponente, 180 = para você, ±90 = de lado).
 
 export const CARD_W = 0.063;
+/** s: carta coberta ou tirada por mais que isso (com o lugar à vista) → a criatura morre e sai. */
+export const LOST_AFTER = 3;
+/** s: por quanto tempo uma carta que saiu ainda pode voltar ao mesmo lugar e renascer. */
+export const REVIVE_FOR = 60;
 export const CARD_H = 0.088;
 
 /** Ângulo em (-180, 180]. */
@@ -100,10 +105,12 @@ export function sameFootprint(a, b, shrink = 1.15) {
 }
 
 export class TableCards {
-  constructor({ matchRadius = 0.06, moveRadius = 0.15, deadzone = 0.015, deadzoneDeg = 8, lostAfter = 6, occupied = 0.04, swapVotes = 3 } = {}) {
-    Object.assign(this, { matchRadius, moveRadius, deadzone, deadzoneDeg, lostAfter, occupied, swapVotes });
+  constructor({ matchRadius = 0.06, moveRadius = 0.15, deadzone = 0.015, deadzoneDeg = 8, lostAfter = LOST_AFTER, reviveFor = REVIVE_FOR, occupied = 0.04, swapVotes = 3 } = {}) {
+    Object.assign(this, { matchRadius, moveRadius, deadzone, deadzoneDeg, lostAfter, reviveFor, occupied, swapVotes });
     this.votes = new Map(); // id da carta no lugar → { oracleId, n } (outro nome lido em cima dela)
     this.entries = new Map(); // id → { id, card, pos, yaw, baseYaw, tapped, lastSeen, missingSince }
+    // Cartas que saíram há pouco (id → { entry, removedAt }): se voltarem ao mesmo lugar, renascem.
+    this.recent = new Map();
     this.nextId = 1;
   }
 
@@ -121,8 +128,20 @@ export class TableCards {
   update(detections, now, visible = () => true) {
     const events = [];
     const seen = new Set();
+    this.#forgetRecent(now);
     for (const d of detections) {
       const entry = this.#match(d, seen);
+      // A mesma carta que acabou de sair, lida de novo no lugar dela: renasce (sem duplicar). Vale mais
+      // que uma cópia na mesa que só "teria andado" até ali.
+      const back = this.#recentAt(d);
+      if (back && (!entry || Math.hypot(d.center.x - entry.pos.x, d.center.y - entry.pos.y) > this.matchRadius)) {
+        const ev = this.revive(back.id, now);
+        if (ev) {
+          seen.add(back.id);
+          events.push(ev);
+          continue;
+        }
+      }
       if (!entry) {
         // Já tem outra carta nesse lugar: é leitura errada (uma carta física, uma criatura) — a não ser
         // que o mesmo outro nome se repita: aí trocaram a carta e a de antes sai.
@@ -145,6 +164,7 @@ export class TableCards {
           this.entries.delete(there.id);
           events.push({ type: 'remove', entry: there });
         }
+        this.#forgetOccupied(d);
         const e = {
           id: this.nextId++, card: d.card, anchor: d.anchor ?? 'title', pos: { ...d.center }, yaw: d.yaw, baseYaw: d.yaw,
           tapped: false, lastSeen: now, missingSince: null, missed: null,
@@ -182,12 +202,62 @@ export class TableCards {
       else e.missed.add(v);
       if (!(e.missed.has('same') && e.missed.has('turned'))) continue;
       e.missingSince ??= now;
-      if (now - e.missingSince >= this.lostAfter) {
-        this.entries.delete(e.id);
-        events.push({ type: 'remove', entry: e });
-      }
+      if (now - e.missingSince >= this.lostAfter) events.push(this.#remove(e, now));
     }
     return events;
+  }
+
+  /** Tira a carta da mesa e a guarda por `reviveFor` s, caso volte ao mesmo lugar. */
+  #remove(e, now) {
+    this.entries.delete(e.id);
+    this.votes.delete(e.id);
+    this.recent.set(e.id, { entry: e, removedAt: now });
+    return { type: 'remove', entry: e };
+  }
+
+  /**
+   * A carta que saiu voltou ao lugar (o vigia viu o recorte casar de novo, ou o OCR a leu ali): a
+   * criatura renasce com a mesma posição e giro. Retorna { type: 'spawn', entry, revived: true }, ou
+   * null se a carta já foi esquecida (passou o prazo ou outra carta ocupou o lugar).
+   */
+  revive(id, now) {
+    const r = this.recent.get(id);
+    if (!r) return null;
+    this.recent.delete(id);
+    if (now - r.removedAt > this.reviveFor) return null;
+    const e = r.entry;
+    Object.assign(e, { lastSeen: now, missingSince: null, missed: null });
+    this.entries.set(e.id, e);
+    return { type: 'spawn', entry: e, revived: true };
+  }
+
+  /** Esquece as cartas que saíram há mais de `reviveFor` s. */
+  #forgetRecent(now) {
+    for (const [id, r] of this.recent) if (now - r.removedAt > this.reviveFor) this.recent.delete(id);
+  }
+
+  /** Outra carta ocupou o lugar de uma que saiu: essa não volta mais. */
+  #forgetOccupied(d) {
+    for (const [id, { entry: e }] of this.recent) {
+      if (e.card.oracleId === d.card.oracleId) continue;
+      if (Math.hypot(d.center.x - e.pos.x, d.center.y - e.pos.y) < this.occupied
+        || sameFootprint({ center: d.center, yaw: d.yaw }, { center: e.pos, yaw: e.yaw })) this.recent.delete(id);
+    }
+  }
+
+  /** A carta de mesmo nome que saiu há pouco do lugar desta leitura (até matchRadius). */
+  #recentAt(d) {
+    let best = null;
+    let bestD = this.matchRadius;
+    for (const { entry: e } of this.recent.values()) {
+      if (e.card.oracleId !== d.card.oracleId) continue;
+      const dist = Math.hypot(d.center.x - e.pos.x, d.center.y - e.pos.y);
+      if (dist <= bestD) {
+        bestD = dist;
+        best = e;
+      }
+    }
+    return best;
   }
 
   /** Virada (~90° para qualquer lado do giro em que entrou) ou desvirada: evento de atacar. */
@@ -232,14 +302,15 @@ export class TableCards {
   }
 
   /**
-   * O vigia não acha mais a carta no lugar (tirada, ou coberta por vários segundos): conta como
-   * faltando em pé e virada; a próxima leitura a remove passado o prazo.
+   * O vigia não acha mais a carta no lugar (tirada, ou coberta): conta como faltando em pé e virada;
+   * passado o prazo, sai. since: desde quando nada casa no recorte (o prazo conta daí, não de quando
+   * o vigia se convenceu).
    */
-  absent(id, now) {
+  absent(id, since) {
     const e = this.entries.get(id);
     if (!e) return;
     e.missed = new Set(['same', 'turned']);
-    e.missingSince ??= now;
+    e.missingSince = Math.min(e.missingSince ?? since, since);
   }
 
   /** Remove as cartas sumidas há mais que o prazo (sem precisar de uma leitura do OCR). */
@@ -247,10 +318,10 @@ export class TableCards {
     const events = [];
     for (const e of this.entries.values()) {
       if (e.missingSince !== null && e.missed?.has('same') && e.missed.has('turned') && now - e.missingSince >= this.lostAfter) {
-        this.entries.delete(e.id);
-        events.push({ type: 'remove', entry: e });
+        events.push(this.#remove(e, now));
       }
     }
+    this.#forgetRecent(now);
     return events;
   }
 
@@ -294,6 +365,7 @@ export class TableCards {
     const events = [...this.entries.values()].map((entry) => ({ type: 'remove', entry }));
     this.entries.clear();
     this.votes.clear();
+    this.recent.clear();
     return events;
   }
 }

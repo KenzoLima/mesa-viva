@@ -21,6 +21,7 @@
 // Visualizador de desenvolvimento: carrega public/models/bestiary/<id>.glb (gerados por tools/bestiary/build.py).
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 const IDS = ['angel_warrior', 'demon_brute', 'dragon_red', 'elf_warrior', 'goblin_warrior', 'human_knight',
@@ -100,7 +101,7 @@ function play(name) {
 }
 
 async function load(id) {
-  const gltf = await new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/bestiary/${id}.glb`);
+  const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`${import.meta.env.BASE_URL}models/bestiary/${id}.glb`);
   if (current) scene.remove(current);
   current = gltf.scene;
   let tris = 0;

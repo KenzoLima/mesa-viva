@@ -115,6 +115,12 @@ Gere o app pela nuvem, como no `IPHONE_GUIA.md`, com `App` e `Mesa` na Scene Lis
 - [ ] Ao cobrir a câmera com a mão, aparece "Rastreamento perdido". Ao descobrir, volta sozinho.
 - [ ] Numa mesa lisa e branca, depois de ~15 s aparece "Não encontrei a mesa" com as dicas.
 
+### Checklist das cartas no app web (modos Mesa)
+- [ ] Tirar uma carta reconhecida (ou cobri-la com a mão) por mais de 3 s: a criatura toca a animação de morte e sai. Tirar e pôr de volta em menos de 1 s não faz nada.
+- [ ] Pôr a mesma carta de volta no mesmo lugar (em até 1 minuto): a criatura renasce ali, olhando para o mesmo lado, e aparece "… voltou à mesa". Só uma criatura, nunca duas.
+- [ ] Pôr outra carta no lugar: surge a criatura da carta nova; a de antes não volta mais.
+- [ ] Virar a câmera para longe de uma carta: a criatura dela não morre.
+
 ---
 
 ## Problemas comuns

@@ -110,3 +110,14 @@ test('recorte da vista de cima centrado na carta, no giro dela', () => {
   const r = patchView({ x: 0, y: 0 }, 90).toTable(v.w / 2, 0); // carta com o topo para a direita
   assert.ok(near(r.x, half, 1e-9) && near(r.y, 0, 1e-9));
 });
+
+test('vigia: decide "sumiu" em 1 s e diz desde quando nada casa', () => {
+  const t = new TurnTracker();
+  assert.equal(t.goneAfter, 1);
+  t.update(cardImage(), S, 0);
+  const empty = new Float32Array(S * S).fill(70).map((v, i) => v + ((i * 7) % 13));
+  assert.deepEqual(t.update(empty, S, 2), { turn: null, present: null });
+  assert.equal(t.update(empty, S, 2.5).present, null);
+  assert.deepEqual(t.update(empty, S, 3), { turn: null, present: false, missingSince: 2 });
+  assert.equal(t.update(cardImage(), S, 3.5).present, true); // voltou: o recorte casa de novo
+});

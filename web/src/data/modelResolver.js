@@ -13,6 +13,10 @@ export function colorKey(colors) {
   return colors[0];
 }
 
+// Subtipos mais frequentes nas mesas: os modelos deles vêm primeiro no pré-carregamento.
+const COMMON_SUBTYPES = ['Human', 'Elf', 'Goblin', 'Zombie', 'Soldier', 'Wizard', 'Spirit', 'Knight', 'Warrior',
+  'Vampire', 'Dragon', 'Angel', 'Merfolk', 'Elemental', 'Giant', 'Demon', 'Skeleton', 'Faerie'];
+
 const choice = (modelId, kind, reason, tint, scale = 1.0, terrainMix = []) =>
   ({ modelId, kind, reason, tint, scale, terrainMix });
 
@@ -25,6 +29,22 @@ export class ModelResolver {
     for (const [family, spec] of Object.entries(modelMap.families ?? {})) {
       for (const subtype of spec.subtypes) this.familyBySubtype.set(subtype, [family, spec.model]);
     }
+  }
+
+  /**
+   * Modelos de criatura que mais aparecem (para baixar antes, em segundo plano): os dos subtipos
+   * mais comuns, os genéricos por cor, por habilidade e por tipo, e os das famílias. Sem repetição.
+   */
+  commonModels() {
+    const m = this.map;
+    const ids = [
+      ...COMMON_SUBTYPES.map((s) => m.bySubtype?.[s]),
+      ...Object.values(m.byColorFallback ?? {}),
+      ...Object.values(m.byKeyword ?? {}),
+      ...Object.values(m.byCreatureCardType ?? {}),
+      ...Object.values(m.families ?? {}).map((f) => f.model),
+    ];
+    return [...new Set(ids.filter(Boolean))];
   }
 
   label(modelId) {
