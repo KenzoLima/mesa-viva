@@ -18,7 +18,7 @@ import {
 } from '../table/tableVisuals.js';
 import { scanReporter } from '../table/scanUi.js';
 import { CardWatch } from '../table/cardWatch.js';
-import { TableCards, planScans, scanOrder, coverage, BlockMemory } from '../table/tableCards.js';
+import { TableCards, planScans, pickJob, coverage, BlockMemory } from '../table/tableCards.js';
 import { TableCardScanner, blockSignature, signatureChange } from '../table/cardScanner.js';
 
 const GOLD = '#d4af37';
@@ -543,7 +543,6 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, onEnd 
   let order = [];
   let jobIndex = 0;
   const memory = new BlockMemory(); // blocos parados não passam de novo pelo OCR
-  let grayCache = null;
   let skipped = 0;
   let planFor = '';
   let lastScan = null; // resumo da última leitura terminada (depuração)
@@ -580,7 +579,7 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, onEnd 
         // A mesa é lida por blocos (seu lado, lado do oponente, cartas viradas), um por vez.
         const key = `${cal.f}|${frame.center.x}|${frame.center.z}|${frame.forward.x}|${frame.width}`;
         if (planFor !== key) {
-          order = scanOrder(planScans(frame, tableVisible));
+          order = planScans(frame, tableVisible);
           jobIndex = 0;
           planFor = key;
           smallHint = smallestCardPx() < 140
@@ -592,21 +591,21 @@ export async function startCameraTableMode({ view, ui, catalog, resolver, onEnd 
           await new Promise((r) => setTimeout(r, 1000));
           continue;
         }
-        const job = order[jobIndex++ % order.length];
-        // Cinza do quadro reaproveitado por meio segundo enquanto os blocos parados são pulados.
-        if (!grayCache || clock - grayCache.at > 0.5) grayCache = { src: scanner.gray(video, VW, VH), at: clock };
-        const src = grayCache.src;
-        const sig = blockSignature(src, job, tableToVideo);
-        if (!memory.needsRead(job, sig, clock, signatureChange)) {
+        // Um quadro, a assinatura de todos os blocos, e lê primeiro o que mudou: a carta que você
+        // acabou de pôr não espera a volta inteira. Sem nada para ler, olha de novo em 0,4 s.
+        const src = scanner.gray(video, VW, VH);
+        const next = pickJob(order, memory, (j) => blockSignature(src, j, tableToVideo), clock, signatureChange, jobIndex);
+        if (!next) {
           skipped++;
-          await new Promise((r) => setTimeout(r, 60));
-          continue; // nada mudou nesse bloco desde a última leitura
+          await new Promise((r) => setTimeout(r, 400));
+          continue; // nada mudou na mesa desde a última leitura
         }
-        const known = [...cards.entries.values()].map((e) => ({ center: e.pos, yaw: e.yaw }));
-        report.reading(((jobIndex - 1) % order.length) + 1, order.length, cards.entries.size);
+        const { job, sig } = next;
+        jobIndex = next.index + 1;
+        const known = [...cards.entries.values()].map((e) => ({ center: e.pos, yaw: e.yaw, oracleId: e.card.oracleId }));
+        report.reading(next.index + 1, order.length, cards.entries.size);
         const detections = await scanner.scan(src, job, tableToVideo, known);
-        memory.remember(job, sig, clock, (scanner.last?.unresolved ?? 0) > 0);
-        grayCache = null; // o OCR demorou: a próxima leitura usa um quadro novo
+        memory.remember(job, sig, clock, (scanner.last?.unresolved ?? 0) > 0, next.why);
         scans++;
         lastScan = scanner.last;
         // Recalibrou durante a leitura: a posição calculada já não vale.

@@ -354,6 +354,30 @@ export function scanOrder(jobs) {
   return [...up, ...up, ...jobs.filter((j) => j.tapped)];
 }
 
+const WHY_RANK = { changed: 0, new: 0, retry: 1, stale: 2 };
+
+/**
+ * O próximo bloco a ler: primeiro os que mudaram (uma carta acabou de ser posta), depois os nunca
+ * lidos, as novas tentativas e, por último, os parados há muito tempo. No empate, os em pé antes dos virados
+ * e, entre iguais, o que vem depois do último lido. O bloco que acabou de ser lido fica para o fim da fila:
+ * uma mão se mexendo num canto da mesa não prende a leitura ali.
+ * jobs: planScans; sigOf(job) → assinatura (ou null); start: índice seguinte ao último lido.
+ * Retorna { job, index, sig, why } ou null (nada para ler agora).
+ */
+export function pickJob(jobs, memory, sigOf, now, change, start = 0) {
+  let best = null;
+  for (let n = 0; n < jobs.length; n++) {
+    const index = (start + n) % jobs.length;
+    const job = jobs[index];
+    const sig = sigOf(job);
+    const why = memory.why(job, sig, now, change);
+    if (!why) continue;
+    const rank = WHY_RANK[why] * 2 + (job.tapped ? 1 : 0) + (n === jobs.length - 1 && jobs.length > 1 ? 10 : 0);
+    if (!best || rank < best.rank) best = { job, index, sig, why, rank };
+  }
+  return best;
+}
+
 /** A posição (mesa) está dentro da região (sem a folga)? */
 export function inRegion(pos, r) {
   return pos.x >= r.x0 && pos.x <= r.x1 && pos.y >= r.y0 && pos.y <= r.y1;
@@ -377,11 +401,12 @@ export function coverage(job, pos, e, inView) {
  * (`maxAge`), para pegar o que escapou numa leitura.
  */
 export class BlockMemory {
-  constructor({ threshold = 1.5, maxAge = 30, retry = 8 } = {}) {
-    this.retry = retry; // bloco com leitura incompleta (linha de tipo sem nome): volta logo
+  constructor({ threshold = 1.5, maxAge = 30, retry = 8, maxRetry = 60 } = {}) {
+    this.retry = retry; // bloco com leitura incompleta (carta sem nome lido): volta logo
+    this.maxRetry = maxRetry; // …mas cada vez mais devagar se a imagem não muda (8, 16, 32, 60 s)
     this.threshold = threshold;
     this.maxAge = maxAge;
-    this.last = new Map(); // chave do bloco → { sig, at, unresolved }
+    this.last = new Map(); // chave do bloco → { sig, at, unresolved, tries }
   }
 
   static key(job) {
@@ -389,17 +414,38 @@ export class BlockMemory {
     return `${r.x0.toFixed(3)},${r.x1.toFixed(3)},${r.y0.toFixed(3)},${r.y1.toFixed(3)},${job.up}`;
   }
 
-  /** Precisa ler o bloco? change(a, b) mede a diferença entre duas assinaturas. */
-  needsRead(job, sig, now, change) {
+  /**
+   * Por que ler o bloco agora, ou null se não precisa. change(a, b) mede a diferença entre duas
+   * assinaturas. 'new' nunca lido · 'changed' a imagem mudou (carta posta, tirada, mão) · 'retry'
+   * leitura incompleta, hora de tentar de novo · 'stale' parado há muito tempo.
+   */
+  why(job, sig, now, change) {
     const prev = this.last.get(BlockMemory.key(job));
-    if (!prev || !sig) return true;
-    if (now - prev.at >= (prev.unresolved ? this.retry : this.maxAge)) return true;
-    return change(sig, prev.sig) > this.threshold;
+    if (!prev || !sig) return 'new';
+    if (change(sig, prev.sig) > this.threshold) return 'changed';
+    if (prev.unresolved) {
+      // Mesma imagem, mesma leitura: insistir de 8 em 8 s só gastava o processador (e a bateria).
+      const wait = Math.min(this.maxRetry, this.retry * 2 ** (prev.tries ?? 0));
+      return now - prev.at >= wait ? 'retry' : null;
+    }
+    return now - prev.at >= this.maxAge ? 'stale' : null;
   }
 
-  /** unresolved: a leitura achou sinal de carta (linha de tipo) sem conseguir o nome. */
-  remember(job, sig, now, unresolved = false) {
-    if (sig) this.last.set(BlockMemory.key(job), { sig, at: now, unresolved });
+  /** Precisa ler o bloco? */
+  needsRead(job, sig, now, change) {
+    return this.why(job, sig, now, change) !== null;
+  }
+
+  /**
+   * unresolved: a leitura achou sinal de carta sem conseguir o nome. why: o motivo dessa leitura
+   * (BlockMemory.why): uma nova tentativa sem nada ter mudado alonga a espera da próxima.
+   */
+  remember(job, sig, now, unresolved = false, why = null) {
+    if (!sig) return;
+    const key = BlockMemory.key(job);
+    const prev = this.last.get(key);
+    const tries = unresolved && why === 'retry' && prev?.unresolved ? (prev.tries ?? 0) + 1 : 0;
+    this.last.set(key, { sig, at: now, unresolved, tries });
   }
 
   clear() {

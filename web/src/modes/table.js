@@ -17,7 +17,7 @@ import {
 } from '../table/tableVisuals.js';
 import { scanReporter } from '../table/scanUi.js';
 import { CardWatch } from '../table/cardWatch.js';
-import { TableCards, planScans, scanOrder, coverage, BlockMemory } from '../table/tableCards.js';
+import { TableCards, planScans, pickJob, coverage, BlockMemory } from '../table/tableCards.js';
 import { TableCardScanner, blockSignature, signatureChange } from '../table/cardScanner.js';
 import { XrCameraImage, cameraAccessAvailable, projectShot } from '../table/xrCameraImage.js';
 
@@ -438,24 +438,26 @@ export async function startTableMode({ ui, catalog, resolver, onEnd }) {
           return !!q && q.x > shot.w * 0.03 && q.x < shot.w * 0.97 && q.y > shot.h * 0.03 && q.y < shot.h * 0.97;
         };
         // A mesa é lida por blocos (seu lado, lado do oponente, cartas viradas), um por foto.
-        const order = scanOrder(planScans(at, visibleInShot));
+        const order = planScans(at, visibleInShot);
         if (!order.length) {
           report.message('aponte a câmera para a área de jogo');
           await new Promise((r) => setTimeout(r, 500));
           continue;
         }
-        const job = order[jobIndex++ % order.length];
+        // Lê primeiro o bloco que mudou; sem nada para ler, pede outra foto daqui a pouco.
         const src = scanner.gray(shot.canvas, shot.w, shot.h);
-        const sig = blockSignature(src, job, toImage);
-        if (!memory.needsRead(job, sig, clockTime, signatureChange)) {
+        const next = pickJob(order, memory, (j) => blockSignature(src, j, toImage), clockTime, signatureChange, jobIndex);
+        if (!next) {
           await new Promise((r) => setTimeout(r, 150));
-          continue; // nada mudou nesse bloco desde a última leitura
+          continue; // nada mudou na mesa desde a última leitura
         }
+        const { job, sig } = next;
+        jobIndex = next.index + 1;
         if (import.meta.env?.DEV) window.__xrTableDebug = { src, job, toImage, shot, scanner, cards, watch };
-        const known = [...cards.entries.values()].map((e) => ({ center: e.pos, yaw: e.yaw }));
-        report.reading(((jobIndex - 1) % order.length) + 1, order.length, cards.entries.size);
+        const known = [...cards.entries.values()].map((e) => ({ center: e.pos, yaw: e.yaw, oracleId: e.card.oracleId }));
+        report.reading(next.index + 1, order.length, cards.entries.size);
         const detections = await scanner.scan(src, job, toImage, known);
-        memory.remember(job, sig, clockTime, (scanner.last?.unresolved ?? 0) > 0);
+        memory.remember(job, sig, clockTime, (scanner.last?.unresolved ?? 0) > 0, next.why);
         if (ended || sm.state !== State.Confirmed || !ui.recognize.checked || shot.epoch !== epoch) continue;
         // Só conta como sumida a carta que ESTE bloco, nesta foto, teria lido.
         const couldRead = (pos, e) => coverage(job, pos, e, (q) => !lost.value && visibleInShot(q));
