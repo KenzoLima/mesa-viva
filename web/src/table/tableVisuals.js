@@ -335,7 +335,7 @@ export class RecognizedCreatures {
   }
 
   apply(events) {
-    for (const { type, entry } of events) {
+    for (const { type, entry, revived } of events) {
       const name = entry.card.displayName ?? entry.card.name;
       if (type === 'spawn') {
         const choice = this.resolver.resolve(entry.card);
@@ -348,7 +348,7 @@ export class RecognizedCreatures {
         creature.userData.recognized = entry.id;
         this.tableRoot.add(creature);
         this.byId.set(entry.id, creature);
-        this.onEvent(`${name} na mesa → ${this.resolver.label(choice.modelId)}`);
+        this.onEvent(revived ? `${name} voltou à mesa` : `${name} na mesa → ${this.resolver.label(choice.modelId)}`);
       } else if (type === 'move') {
         const c = this.byId.get(entry.id);
         if (c) c.userData.target = { pos: local(entry.pos), rot: facingOf(entry) };

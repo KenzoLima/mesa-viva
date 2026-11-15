@@ -288,3 +288,101 @@ test('nome mais completo no mesmo lugar troca na hora ("Dragon" → "Shivan Drag
   // O contrário (nome mais curto depois) não troca.
   assert.deepEqual(types(t.update([{ card: token, anchor: 'title', center: { x: -0.11, y: -0.13 }, yaw: 0 }], 2)), []);
 });
+
+test('carta coberta ou tirada: sai em 3 s contados de quando parou de casar', async () => {
+  const { LOST_AFTER } = await import('../src/table/tableCards.js');
+  assert.equal(LOST_AFTER, 3);
+  const t = new TableCards();
+  assert.equal(t.lostAfter, LOST_AFTER);
+  t.update([det(elf, 0, -0.2)], 0);
+  const id = [...t.entries.keys()][0];
+  // O vigia se convence às 11 s de que nada casa desde as 10 s: o prazo conta das 10 s.
+  t.absent(id, 10);
+  assert.deepEqual(types(t.expire(12.9)), []);
+  assert.deepEqual(types(t.expire(13)), ['remove:elf']);
+  // Um aviso mais antigo puxa o começo para trás; um mais novo não empurra para a frente.
+  const u = new TableCards();
+  u.update([det(elf, 0, -0.2)], 0);
+  const uid = [...u.entries.keys()][0];
+  u.absent(uid, 5);
+  u.absent(uid, 4);
+  u.absent(uid, 6);
+  assert.equal(u.entries.get(uid).missingSince, 4);
+  // Fora da câmera continua não contando.
+  const v = new TableCards();
+  v.update([det(elf, 0, -0.2)], 0);
+  v.update([], 1, () => false);
+  assert.deepEqual(types(v.update([], 30, () => false)), []);
+});
+
+test('renascer: a carta que saiu volta ao lugar em até 60 s', () => {
+  const t = new TableCards();
+  t.update([det(dragon, 0.1, -0.2, 90)], 0);
+  const id = [...t.entries.keys()][0];
+  t.absent(id, 1);
+  assert.deepEqual(types(t.expire(4)), ['remove:dragon']);
+  assert.ok(t.recent.has(id));
+  // O vigia viu o recorte casar de novo: mesma carta, mesmo lugar e giro.
+  const ev = t.revive(id, 20);
+  assert.equal(ev.type, 'spawn');
+  assert.equal(ev.revived, true);
+  assert.equal(ev.entry.id, id);
+  assert.deepEqual([ev.entry.pos, ev.entry.yaw], [{ x: 0.1, y: -0.2 }, 90]);
+  assert.equal(ev.entry.missingSince, null);
+  assert.ok(t.entries.has(id) && !t.recent.has(id));
+  assert.equal(t.revive(id, 21), null); // já voltou
+  // Passados 60 s, esquece.
+  t.absent(id, 30);
+  t.expire(33);
+  assert.equal(t.revive(id, 93.5), null);
+  assert.equal(t.entries.size, 0);
+});
+
+test('renascer pelo OCR: mesma carta no lugar volta sem duplicar; longe é carta nova', () => {
+  const t = new TableCards();
+  t.update([det(elf, 0, -0.2)], 0);
+  const id = [...t.entries.keys()][0];
+  t.update([], 1);
+  assert.deepEqual(types(t.update([], 4)), ['remove:elf']);
+  const ev = t.update([det(elf, 0.02, -0.21)], 10);
+  assert.deepEqual(types(ev), ['spawn:elf']);
+  assert.equal(ev[0].revived, true);
+  assert.equal(ev[0].entry.id, id);
+  assert.equal(t.entries.size, 1);
+  assert.deepEqual(ev[0].entry.pos, { x: 0, y: -0.2 }); // renasce onde estava
+  // Lida de novo: é a mesma carta (só acompanha os 2 cm), não uma segunda.
+  assert.deepEqual(types(t.update([det(elf, 0.02, -0.21)], 11)), ['move:elf']);
+  assert.equal(t.entries.size, 1);
+  // Saiu e foi posta longe (além de matchRadius): carta nova, não renasce.
+  t.update([], 12);
+  t.update([], 15);
+  const far = t.update([det(elf, 0.3, -0.2)], 20);
+  assert.deepEqual(types(far), ['spawn:elf']);
+  assert.equal(far[0].revived, undefined);
+  assert.notEqual(far[0].entry.id, id);
+});
+
+test('renascer: vale mais que arrastar outra cópia; outra carta no lugar faz esquecer; clear limpa', () => {
+  const t = new TableCards();
+  t.update([det(elf, 0, -0.2), det(elf, 0.1, -0.2)], 0);
+  const [a, b] = [...t.entries.keys()];
+  t.absent(a, 1);
+  t.expire(4);
+  // A única cópia na mesa está a 10 cm (daria para "arrastar"), mas a que saiu voltou ao lugar dela.
+  const ev = t.update([det(elf, 0, -0.2), det(elf, 0.1, -0.2)], 5);
+  assert.deepEqual(types(ev), ['spawn:elf']);
+  assert.equal(ev[0].entry.id, a);
+  assert.deepEqual(t.entries.get(b).pos, { x: 0.1, y: -0.2 });
+  // Outra carta ocupa o lugar: a que saiu não volta mais.
+  t.absent(a, 6);
+  t.expire(9);
+  t.update([det(dragon, 0, -0.2)], 10);
+  assert.equal(t.recent.has(a), false);
+  assert.equal(t.revive(a, 11), null);
+  // Recalibrar esquece também as que saíram há pouco.
+  t.absent(b, 12);
+  t.expire(15);
+  assert.ok(t.recent.size);
+  t.clear();
+  assert.equal(t.recent.size, 0);
+});

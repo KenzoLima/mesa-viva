@@ -95,3 +95,26 @@ test('mágicas e outros permanentes', () => {
   assert.deepEqual([pick('Sol Ring').modelId, pick('Sol Ring').kind], ['prop_artifact', PROP]);
   assert.equal(pick('Liliana of the Veil').modelId, 'hero_planeswalker');
 });
+
+test('modelos comuns para baixar antes: sem repetir, todos com .glb', async () => {
+  const { existsSync } = await import('node:fs');
+  const ids = resolver.commonModels();
+  assert.ok(ids.length >= 10);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.equal(ids[0], map.bySubtype.Human); // os subtipos mais comuns primeiro
+  for (const id of Object.values(map.byColorFallback)) assert.ok(ids.includes(id));
+  for (const id of ids) assert.ok(existsSync(new URL(`../public/models/${id}.glb`, import.meta.url)), id);
+});
+
+test('GLB: confere o "magic" e os modelos vêm comprimidos com meshopt', async () => {
+  const { isGlb } = await import('../src/creatures.js');
+  const bytes = (s) => new TextEncoder().encode(s).buffer;
+  assert.equal(isGlb(bytes('glTF\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000')), true);
+  assert.equal(isGlb(bytes('<!doctype html><html>')), false); // servidor sem o modelo devolve a página
+  assert.equal(isGlb(bytes('glTF')), false); // curto demais
+  assert.equal(isGlb(null), false);
+  const glb = readFileSync(new URL('../public/models/dragon.glb', import.meta.url));
+  if (glb.subarray(0, 4).toString('latin1') !== 'glTF') return; // só o ponteiro do LFS: nada a conferir
+  const json = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString('utf8'));
+  assert.ok(json.extensionsUsed.includes('EXT_meshopt_compression'));
+});

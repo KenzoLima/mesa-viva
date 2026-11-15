@@ -1,6 +1,8 @@
 // Vigia das cartas reconhecidas, rodando várias vezes por segundo nos dois modos Mesa (sem OCR).
 // Para cada carta conhecida recorta só o pedacinho da imagem em volta dela, monta a vista de cima
 // (turnWatch.js) e decide se ela foi virada (atacar), desvirada, girada de ponta-cabeça ou tirada.
+// Também segue as cartas que saíram há pouco (TableCards.recent): se o recorte voltar a casar no
+// lugar, a carta voltou e a criatura renasce.
 // O OCR (cardScanner) continua achando as cartas novas e as que mudaram de lugar.
 
 import { TurnTracker, patchView } from './turnWatch.js';
@@ -24,8 +26,11 @@ export class CardWatch {
    * quadro ou null; now: segundos.
    */
   tick(source, srcW, srcH, toImage, now) {
-    for (const id of this.trackers.keys()) if (!this.cards.entries.has(id)) this.trackers.delete(id);
-    for (const e of [...this.cards.entries.values()]) {
+    const known = (id) => this.cards.entries.has(id) || this.cards.recent.has(id);
+    for (const id of this.trackers.keys()) if (!known(id)) this.trackers.delete(id);
+    const recent = [...this.cards.recent.values()].map((r) => r.entry);
+    for (const e of [...this.cards.entries.values(), ...recent]) {
+      const gone = !this.cards.entries.has(e.id); // saiu há pouco: só procura a volta
       let t = this.trackers.get(e.id);
       if (!t) {
         t = { tracker: new TurnTracker(), refYaw: e.baseYaw };
@@ -55,8 +60,12 @@ export class CardWatch {
       const patch = resampleTopDown({ data, w, h }, view, toSub);
       if (!patch) continue;
       const r = t.tracker.update(patch, view.w, now);
+      if (gone) {
+        if (r.present === true) this.recognized.apply([this.cards.revive(e.id, now)].filter(Boolean));
+        continue;
+      }
       if (r.present === true) this.cards.seen(e.id, now);
-      else if (r.present === false) this.cards.absent(e.id, now);
+      else if (r.present === false) this.cards.absent(e.id, r.missingSince ?? now);
       if (r.turn !== null) {
         this.recognized.apply(this.cards.turn(e.id, wrapDeg(t.refYaw + r.turn), now));
         // De ponta-cabeça a carta passa a ter esse giro como "em pé": nova referência.

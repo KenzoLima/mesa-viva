@@ -139,12 +139,12 @@ export function matchTurn(refIn, curIn, S, res = PATCH_RES) {
  * Estado do vigia de UMA carta. update(recorte, agora) → { turn (mudou para), present }:
  *   turn: novo giro (0, 90, 180, -90) em relação à referência, só no momento em que muda;
  *   present: true (carta vista com clareza), false (há `goneAfter` s sem casar nada: tirada ou
- *   coberta) ou null (incerto). Abaixo de `goneScore` conta como "nada casa"; só um casamento
+ *   coberta; vem com missingSince, o instante em que parou de casar) ou null (incerto). Abaixo de `goneScore` conta como "nada casa"; só um casamento
  *   acima de `backScore` zera essa conta.
  * Histerese: o giro novo precisa ganhar `holdChecks` vezes seguidas, com folga sobre o atual.
  */
 export class TurnTracker {
-  constructor({ minScore = 0.45, margin = 0.12, holdChecks = 2, goneScore = 0.35, backScore = 0.45, goneAfter = 4, refreshEvery = 8 } = {}) {
+  constructor({ minScore = 0.45, margin = 0.12, holdChecks = 2, goneScore = 0.35, backScore = 0.45, goneAfter = 1, refreshEvery = 8 } = {}) {
     Object.assign(this, { minScore, margin, holdChecks, goneScore, backScore, goneAfter, refreshEvery });
     this.ref = null;
     this.refAt = 0;
@@ -177,7 +177,7 @@ export class TurnTracker {
     if (m.best < this.backScore) {
       this.cand = null;
       const gone = this.lowSince !== null && now - this.lowSince >= this.goneAfter;
-      return { turn: null, present: gone ? false : null };
+      return gone ? { turn: null, present: false, missingSince: this.lowSince } : { turn: null, present: null };
     }
     const present = m.best >= 0.5 ? true : null;
     const currentScore = m.scores[TURNS.indexOf(this.turn)];

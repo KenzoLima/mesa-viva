@@ -314,6 +314,8 @@ Na fase **SAINDO** (janela de 1,5–2 s), o sistema decide o motivo:
 - Se uma carta removida reaparece **no mesmo lugar** em < 5 s, ela é restaurada automaticamente sem nova animação de invocação, porque foi um falso negativo.
 - Os limiares (1,5 s, 4 cm etc.) ficam todos num **ScriptableObject de configuração**, ajustáveis no menu de debug sem recompilar.
 
+**Como está no app web (modos Mesa, nov/2026):** a carta com o lugar à vista que não casa por mais de **3 s** (`LOST_AFTER`, `web/src/table/tableCards.js`) sai, com a animação de morte. O prazo conta de quando o recorte da carta parou de casar, não de quando o vigia teve certeza (1 s). Fora da câmera não conta. Se a mesma carta volta ao **mesmo lugar em até 60 s**, vista pelo vigia ou lida pelo OCR, a criatura **renasce** no mesmo lugar e giro (a "restauração automática" acima, com uma janela maior). Outra carta no lugar faz esquecer a de antes. Zonas de cemitério/exílio e o ↺ Desfazer ainda não existem.
+
 ### 6.4 O truque da latência (portal de invocação)
 A identificação leva de 0,3 a 1,5 s. Em vez de esconder esse atraso, ele vira parte da experiência:
 1. Assim que a carta é **detectada** (antes de ser identificada), um **portal/círculo mágico** aparece sobre ela, na cor neutra.
@@ -419,6 +421,7 @@ Todo modelo vira um **prefab de criatura** com:
   Assim **qualquer modelo estático** já funciona.
 - Ferramenta no Editor (`CreatureImporter`): arrastar um FBX/GLB e gerar automaticamente o prefab padronizado (pivot, escala, controller e colisor de toque).
 - Formatos: FBX/GLB importados no projeto. Carregamento em runtime (glTFast + Addressables) fica para depois, quando os modelos forem baixáveis.
+- No app web, os GLB de `web/public/models/` vão comprimidos com **meshopt** (`npm run compress-models`, que confere nós, malhas, peles, animações e caixa antes de gravar). Os modelos mais comuns são baixados e têm os shaders compilados em segundo plano enquanto a mesa é calibrada.
 
 ### 9.3 Qual modelo cada carta usa (`ModelResolver`)
 Ordem de prioridade:
