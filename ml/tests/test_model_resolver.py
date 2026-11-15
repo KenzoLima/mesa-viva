@@ -13,13 +13,13 @@ def pick(db, resolver, name):
         ("Llanowar Elves", "bestiary/elf_druid", "subtipo Elf Druid"),     # byRaceClass Elf+Druid
         ("Goblin Guide", "bestiary/goblin_warrior", "subtipo Goblin"),       # Goblin vence Scout
         ("Delver of Secrets", "bestiary/human_wizard", "subtipo Human Wizard"),  # byRaceClass Human+Wizard
-        ("Jötun Grunt", "giant", "subtipo Giant"),          # Giant vence Soldier
-        ("Grizzly Bears", "beast", "família beast (Bear)"),
-        ("Progenitus", "lizard", "família reptile (Hydra)"),
-        ("Ornithopter", "winged", "habilidade Flying"),
-        ("Myr Enforcer", "golem", "tipo Artifact"),
+        ("Jötun Grunt", "bestiary/giant_frost", "subtipo Giant"),          # Giant vence Soldier
+        ("Grizzly Bears", "bestiary/bear_cave", "subtipo Bear"),
+        ("Progenitus", "bestiary/hydra", "subtipo Hydra"),
+        ("Ornithopter", "bestiary/thopter", "subtipo Thopter"),
+        ("Myr Enforcer", "bestiary/myr_drone", "subtipo Myr"),
         ("Tarmogoyf", "elemental", "cor G (genérico)"),
-        ("Dryad Arbor", "elemental", "cor G (genérico)"),   # terreno-criatura usa a criatura
+        ("Dryad Arbor", "bestiary/dryad", "subtipo Dryad"),   # terreno-criatura usa a criatura
     ],
 )
 def test_creature_priorities(db, resolver, name, model, reason):

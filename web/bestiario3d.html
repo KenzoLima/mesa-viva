@@ -23,8 +23,27 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-const IDS = ['angel_warrior', 'demon_brute', 'dragon_red', 'elf_warrior', 'goblin_warrior', 'human_knight', 'human_soldier', 'orc_berserker', 'skeleton_warrior', 'spider_giant', 'vampire_lord', 'wolf_shadow', 'zombie_shambler',
-             'human_wizard', 'human_cleric', 'human_rogue', 'human_barbarian', 'goblin_shaman', 'elf_druid'];
+const IDS = ['angel_warrior', 'demon_brute', 'dragon_red', 'elf_warrior', 'goblin_warrior', 'human_knight',
+             'human_soldier', 'orc_berserker', 'skeleton_warrior', 'spider_giant', 'vampire_lord', 'wolf_shadow',
+             'zombie_shambler', 'human_wizard', 'human_cleric', 'human_rogue', 'human_barbarian', 'goblin_shaman',
+             'elf_druid', 'angel_seraph', 'archdemon', 'archdemon_plague', 'artificer_gnome', 'aven_corvid',
+             'aven_scout', 'bat_giant', 'bat_vampire', 'bear_cave', 'boar_razorback', 'boar_war', 'cat_sabertooth',
+             'cat_shadow', 'centaur_scout', 'demon_frost', 'dinosaur_rex', 'dinosaur_rex_plague', 'dragon_black',
+             'dragon_bog', 'dragon_skeletal', 'drake', 'drake_storm', 'dryad', 'dryad_autumn', 'dwarf_smith',
+             'eldrazi_drone', 'eldrazi_titan', 'eldrazi_titan_hollow', 'elemental_ash', 'elemental_earth',
+             'elemental_fire', 'elemental_mud', 'elf_druid_autumn', 'elf_forest', 'faerie_thorn', 'fallen_angel',
+             'gargoyle', 'gargoyle_obsidian', 'geist_drowned', 'ghost_geist', 'giant_frost', 'goblin_hexer',
+             'golem_iron', 'golem_stone', 'griffin', 'griffin_storm', 'homunculus', 'horror_abyssal', 'human_assassin',
+             'human_berserker_frost', 'human_cleric_dark', 'human_knight_fallen', 'human_mercenary',
+             'human_wizard_pyromancer', 'hydra', 'imp', 'imp_ember', 'insect_mantis', 'kitsune_monk', 'kraken',
+             'kraken_abyssal', 'leonin_guard', 'leviathan', 'lich', 'loxodon_monk', 'mantis_orchid',
+             'merfolk_spearman', 'minotaur_champion', 'mummy_priest', 'myconid_rotcap', 'myconid_sovereign',
+             'myr_drone', 'myr_gold', 'naga_mystic', 'nezumi_rogue', 'nightmare_pale', 'nightmare_steed', 'ogre_brute',
+             'ooze_acid', 'ooze_bile', 'orc_frost', 'phyrexian_soldier', 'plant_carnivorous', 'raptor', 'raptor_ash',
+             'raven_giant', 'raven_omen', 'saproling', 'saproling_rot', 'satyr_reveler', 'serpent_sea',
+             'serpent_sea_abyssal', 'sliver_blade', 'snake_viper', 'sphinx', 'sphinx_azure', 'spider_phase',
+             'spirit_ancestor', 'spirit_stag', 'spirit_stag_winter', 'thopter', 'thopter_scout', 'treefolk_elder',
+             'troll_moss', 'viashino_duelist', 'werewolf', 'wraith_hooded', 'wurm'];
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
